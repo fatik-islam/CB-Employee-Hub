@@ -102,10 +102,13 @@ db.exec(`
 `);
 
 const seedAdmin = () => {
-  const email = process.env.ADMIN_EMAIL || 'admin@chickybites.com';
-  const password = process.env.ADMIN_PASSWORD || 'ChangeMe@123';
+  const email = (process.env.ADMIN_EMAIL || 'admin@chickybites.com').trim().toLowerCase();
+  const configuredPassword = process.env.ADMIN_PASSWORD?.trim();
+  const password = configuredPassword || 'ChangeMe@123';
 
-  const existing = db.prepare('SELECT id FROM users WHERE email = ? LIMIT 1').get(email.toLowerCase());
+  const existing = db
+    .prepare('SELECT id, password_hash FROM users WHERE email = ? LIMIT 1')
+    .get(email);
 
   if (!existing) {
     const id = randomUUID();
@@ -113,7 +116,15 @@ const seedAdmin = () => {
     db.prepare(
       `INSERT INTO users (id, full_name, email, password_hash, role, active)
        VALUES (?, ?, ?, ?, 'admin', 1)`
-    ).run(id, 'System Admin', email.toLowerCase(), hash);
+    ).run(id, 'System Admin', email, hash);
+  } else {
+    db.prepare("UPDATE users SET role = 'admin', active = 1 WHERE id = ?").run(existing.id);
+
+    // If ADMIN_PASSWORD is explicitly configured, keep the stored admin hash in sync.
+    if (configuredPassword && !bcrypt.compareSync(configuredPassword, existing.password_hash)) {
+      const hash = bcrypt.hashSync(configuredPassword, 12);
+      db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, existing.id);
+    }
   }
 
   // Enforce admin-only sign-in mode.
