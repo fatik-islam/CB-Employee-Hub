@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= pageTitle %> | Chicky Bites Attendance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/public/css/styles.css" />
+  </head>
+  <body>
+    <div class="ambient-bg"></div>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark brand-mark-cb">
+            <img src="/assets/logo.png" alt="Chicky Bites logo" class="brand-logo" />
+          </span>
+        </div>
+
+        <nav class="nav-links">
+          <a class="<%= pageTitle === 'Dashboard' ? 'active' : '' %>" href="/dashboard">Dashboard</a>
+          <a class="<%= pageTitle === 'Attendance Mode' ? 'active' : '' %>" href="/attendance-mode">Attendance Mode</a>
+          <a class="<%= pageTitle === 'Attendance Records' ? 'active' : '' %>" href="/attendance">Attendance Records</a>
+          <% if (currentUser && currentUser.role === 'admin') { %>
+            <a class="<%= pageTitle === 'Biometric Management' ? 'active' : '' %>" href="/biometric-management">Biometric Management</a>
+            <a class="<%= pageTitle === 'Employees' ? 'active' : '' %>" href="/employees">Employees</a>
+          <% } %>
+          <a class="<%= pageTitle === 'Leave Management' ? 'active' : '' %>" href="/leaves">Leaves</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span class="role-chip"><%= currentUser?.role || 'guest' %></span>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="topbar-left">
+            <h2><%= pageTitle %></h2>
+          </div>
+
+          <div class="topbar-right">
+            <div class="topbar-meta">
+              <span class="meta-chip"><%= today %></span>
+              <% if (currentUser) { %>
+                <span class="meta-chip"><%= currentUser.full_name %></span>
+              <% } %>
+            </div>
+
+            <% if (currentUser) { %>
+              <form action="/logout" method="post">
+                <button class="btn ghost" type="submit">Log Out</button>
+              </form>
+            <% } %>
+          </div>
+        </header>
+
+        <% if (flash) { %>
+          <div class="alert <%= flash.type %>"><%= flash.message %></div>
+        <% } %>
