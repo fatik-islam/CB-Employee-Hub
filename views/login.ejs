@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In | Chicky Bites Attendance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/public/css/styles.css" />
+  </head>
+  <body class="login-screen">
+    <div class="ambient-bg"></div>
+
+    <main class="auth-card">
+      <div class="brand brand-auth">
+        <span class="brand-mark brand-mark-cb">
+          <img src="/assets/logo.png" alt="Chicky Bites logo" class="brand-logo" />
+        </span>
+        <div>
+          <h1>Chicky Bites</h1>
+        </div>
+      </div>
+
+      <% if (flash) { %>
+        <div class="alert <%= flash.type %>"><%= flash.message %></div>
+      <% } %>
+
+      <form action="/login" method="post" class="stack-form">
+        <label>
+          Admin Email
+          <input type="email" name="email" placeholder="admin@chickybites.com" required />
+        </label>
+
+        <label>
+          Password
+          <input type="password" name="password" placeholder="Enter password" required />
+        </label>
+
+        <button class="btn primary" type="submit">Secure Sign In</button>
+      </form>
+
+      <div class="split-actions mt-10">
+        <a class="btn neutral" href="/kiosk-login">Kiosk Access</a>
+      </div>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,58 @@
+<%- include('partials/header') %>
+
+<section class="panel biometric-root">
+  <div class="panel-head">
+    <h3>Face Recognition Attendance</h3>
+  </div>
+
+  <div class="grid-two">
+    <div class="camera-card">
+      <video id="faceVideo" autoplay muted playsinline></video>
+      <canvas id="faceCanvas" hidden></canvas>
+      <div class="split-actions">
+        <button class="btn ghost" id="startCameraBtn" type="button">Start Camera</button>
+      </div>
+    </div>
+
+    <div class="stack-form">
+      <label>
+        Employee
+        <select id="faceEmployeeId">
+          <option value="">Select employee</option>
+          <% employees.forEach((employee) => { %>
+            <option value="<%= employee.id %>">
+              <%= employee.employee_code %> - <%= employee.full_name %>
+            </option>
+          <% }) %>
+        </select>
+      </label>
+
+      <label>
+        Attendance Date
+        <input
+          id="biometricDate"
+          class="date-input"
+          type="text"
+          value="<%= today %>"
+          placeholder="dd-mm-yyyy"
+          inputmode="numeric"
+          pattern="\\d{2}-{1,2}\\d{2}-{1,2}\\d{4}"
+          required
+        />
+      </label>
+
+      <div class="split-actions">
+        <button class="btn primary" id="enrollFaceBtn" type="button">Enroll Face</button>
+        <button class="btn primary" id="verifyFaceBtn" type="button">Verify Face</button>
+        <button class="btn danger" id="removeFaceBtn" type="button">Remove Face Profile</button>
+      </div>
+
+    </div>
+  </div>
+
+  <p id="faceStatus" class="status-line">Face system ready.</p>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+<%- include('partials/footer') %>

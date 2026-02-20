@@ -1,0 +1,151 @@
+<%- include('partials/header') %>
+
+<section class="panel">
+  <div class="panel-head">
+    <h3>Add Employee</h3>
+  </div>
+
+  <form action="/employees" method="post" class="grid-form">
+    <label>
+      Employee Code
+      <input name="employeeCode" required maxlength="32" placeholder="CB-001" />
+    </label>
+
+    <label>
+      Full Name
+      <input name="fullName" required maxlength="120" placeholder="Employee full name" />
+    </label>
+
+    <label>
+      Phone
+      <input name="phone" maxlength="30" placeholder="+8801..." />
+    </label>
+
+    <label>
+      Position
+      <input name="position" maxlength="80" placeholder="Counter Lead" />
+    </label>
+
+    <label>
+      Employment Role
+      <select name="role" required>
+        <option value="staff">Staff</option>
+        <option value="manager">Manager</option>
+      </select>
+    </label>
+
+    <div class="full-width">
+      <button class="btn primary" type="submit">Add Employee</button>
+    </div>
+  </form>
+</section>
+
+<% if (editingEmployee) { %>
+  <section class="panel">
+    <div class="panel-head">
+      <h3>Update Employee: <%= editingEmployee.full_name %></h3>
+    </div>
+
+    <form action="/employees/<%= editingEmployee.id %>/update" method="post" class="grid-form">
+      <label>
+        Employee Code
+        <input name="employeeCode" required maxlength="32" value="<%= editingEmployee.employee_code %>" />
+      </label>
+
+      <label>
+        Full Name
+        <input name="fullName" required maxlength="120" value="<%= editingEmployee.full_name %>" />
+      </label>
+
+      <label>
+        Phone
+        <input name="phone" maxlength="30" value="<%= editingEmployee.phone || '' %>" />
+      </label>
+
+      <label>
+        Position
+        <input name="position" maxlength="80" value="<%= editingEmployee.position || '' %>" />
+      </label>
+
+      <label>
+        Employment Role
+        <select name="role" required>
+          <option value="staff" <%= editingEmployee.role === 'staff' ? 'selected' : '' %>>Staff</option>
+          <option value="manager" <%= editingEmployee.role === 'manager' ? 'selected' : '' %>>Manager</option>
+        </select>
+      </label>
+
+      <label>
+        Status
+        <select name="status" required>
+          <option value="active" <%= editingEmployee.status === 'active' ? 'selected' : '' %>>Active</option>
+          <option value="inactive" <%= editingEmployee.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+        </select>
+      </label>
+
+      <div class="full-width split-actions">
+        <button class="btn primary" type="submit">Save Changes</button>
+        <a class="btn ghost" href="/employees">Cancel</a>
+      </div>
+    </form>
+  </section>
+<% } %>
+
+<section class="panel">
+  <div class="panel-head">
+    <h3>Employee Directory</h3>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Name</th>
+          <th>Position</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!employees.length) { %>
+          <tr>
+            <td colspan="6">No employees yet.</td>
+          </tr>
+        <% } %>
+
+        <% employees.forEach((employee) => { %>
+          <tr>
+            <td><%= employee.employee_code %></td>
+            <td><%= employee.full_name %></td>
+            <td><%= employee.position || '-' %></td>
+            <td><span class="role-chip"><%= employee.role %></span></td>
+            <td>
+              <span class="status-pill <%= employee.status === 'active' ? 'good' : 'bad' %>">
+                <%= employee.status %>
+              </span>
+            </td>
+            <td>
+              <div class="split-actions">
+                <a class="btn ghost" href="/employees?edit=<%= employee.id %>">Edit</a>
+                <form
+                  action="/employees/<%= employee.id %>/delete"
+                  method="post"
+                  data-confirm-form
+                  data-confirm-title="Delete Employee"
+                  data-confirm-message="Delete <%= employee.full_name %> (<%= employee.employee_code %>) and all linked records?"
+                  data-confirm-proceed="Delete Employee"
+                >
+                  <button class="btn danger" type="submit">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<%- include('partials/footer') %>
