@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kiosk Access | Chicky Bites Attendance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/public/css/styles.css" />
+  </head>
+  <body class="login-screen">
+    <div class="ambient-bg"></div>
+
+    <main class="auth-card">
+      <div class="brand brand-auth">
+        <span class="brand-mark brand-mark-cb">
+          <img src="/assets/logo.png" alt="Chicky Bites logo" class="brand-logo" />
+        </span>
+        <div>
+          <h1>Kiosk Access</h1>
+        </div>
+      </div>
+
+      <% if (flash) { %>
+        <div class="alert <%= flash.type %>"><%= flash.message %></div>
+      <% } %>
+
+      <form action="/kiosk-login" method="post" class="stack-form">
+        <label>
+          Kiosk PIN
+          <input type="password" name="pin" inputmode="numeric" autocomplete="one-time-code" required />
+        </label>
+
+        <button class="btn primary" type="submit">Enter Attendance Mode</button>
+      </form>
+
+      <div class="split-actions mt-10">
+        <a class="btn neutral" href="/login">Admin Sign In</a>
+      </div>
+    </main>
+  </body>
+</html>

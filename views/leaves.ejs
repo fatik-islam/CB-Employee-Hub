@@ -1,0 +1,115 @@
+<%- include('partials/header') %>
+
+<section class="panel">
+  <div class="panel-head">
+    <h3>Create Leave Request</h3>
+  </div>
+
+  <form action="/leaves/request" method="post" class="grid-form">
+    <label>
+      Employee
+      <select name="employeeId" required>
+        <option value="">Select employee</option>
+        <% employees.forEach((employee) => { %>
+          <option value="<%= employee.id %>"><%= employee.employee_code %> - <%= employee.full_name %></option>
+        <% }) %>
+      </select>
+    </label>
+
+    <label>
+      Start Date
+      <input
+        class="date-input"
+        type="text"
+        name="startDate"
+        placeholder="dd-mm-yyyy"
+        inputmode="numeric"
+        pattern="\\d{2}-{1,2}\\d{2}-{1,2}\\d{4}"
+        required
+      />
+    </label>
+
+    <label>
+      End Date
+      <input
+        class="date-input"
+        type="text"
+        name="endDate"
+        placeholder="dd-mm-yyyy"
+        inputmode="numeric"
+        pattern="\\d{2}-{1,2}\\d{2}-{1,2}\\d{4}"
+        required
+      />
+    </label>
+
+    <label class="full-width">
+      Reason
+      <textarea name="reason" rows="2" maxlength="350" placeholder="Reason for leave"></textarea>
+    </label>
+
+    <div class="full-width">
+      <button class="btn primary" type="submit">Submit Leave Request</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Date Range</th>
+          <th>Reason</th>
+          <th>Status</th>
+          <th>Requested By</th>
+          <th>Reviewed By</th>
+          <% if (canReview) { %><th>Review</th><% } %>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!leaves.length) { %>
+          <tr>
+            <td colspan="<%= canReview ? 7 : 6 %>">No leave records yet.</td>
+          </tr>
+        <% } %>
+
+        <% leaves.forEach((leave) => { %>
+          <tr>
+            <td><%= leave.full_name %> (<%= leave.employee_code %>)</td>
+            <td><%= formatDate(leave.start_date) %> to <%= formatDate(leave.end_date) %></td>
+            <td><%= leave.reason || '-' %></td>
+            <td>
+              <span class="status-pill <%= leave.status === 'approved' ? 'good' : leave.status === 'rejected' ? 'bad' : 'warn' %>">
+                <%= leave.status %>
+              </span>
+            </td>
+            <td><%= leave.requested_by_name || 'System' %></td>
+            <td><%= leave.reviewed_by_name || '-' %></td>
+
+            <% if (canReview) { %>
+              <td>
+                <% if (leave.status === 'pending') { %>
+                  <div class="split-actions">
+                    <form action="/leaves/<%= leave.id %>/status" method="post">
+                      <input type="hidden" name="status" value="approved" />
+                      <button class="btn primary" type="submit">Approve</button>
+                    </form>
+                    <form action="/leaves/<%= leave.id %>/status" method="post">
+                      <input type="hidden" name="status" value="rejected" />
+                      <button class="btn danger" type="submit">Reject</button>
+                    </form>
+                  </div>
+                <% } else { %>
+                  <span class="status-pill">Finalized</span>
+                <% } %>
+              </td>
+            <% } %>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

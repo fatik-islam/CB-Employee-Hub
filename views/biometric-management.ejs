@@ -1,0 +1,143 @@
+<%- include('partials/header') %>
+
+<section class="panel">
+  <div class="panel-head">
+    <h3>System Metrics</h3>
+  </div>
+
+  <div class="metrics-grid">
+    <article class="metric-card">
+      <p>Face Enrolled Employees</p>
+      <h4><%= metrics.totalFaceEnrolledEmployees %></h4>
+    </article>
+    <article class="metric-card">
+      <p>Pending Face Enrollment</p>
+      <h4><%= metrics.pendingFaceEnrollment %></h4>
+    </article>
+    <article class="metric-card">
+      <p>Attendance Success Rate</p>
+      <h4><%= (metrics.attendanceSuccessRate * 100).toFixed(1) %>%</h4>
+    </article>
+    <article class="metric-card">
+      <p>Failed Verification Rate</p>
+      <h4><%= (metrics.failedVerificationRate * 100).toFixed(1) %>%</h4>
+    </article>
+    <article class="metric-card <%= metrics.systemHealth === 'Healthy' ? 'good' : metrics.systemHealth === 'Attention' ? 'warn' : 'bad' %>">
+      <p>System Health</p>
+      <h4><%= metrics.systemHealth %></h4>
+    </article>
+  </div>
+</section>
+
+<section class="panel biometric-root">
+  <div class="panel-head">
+    <h3>Biometric Management (Admin)</h3>
+  </div>
+
+  <div class="grid-two">
+    <div class="camera-card">
+      <video id="faceVideo" autoplay muted playsinline></video>
+      <canvas id="faceCanvas" hidden></canvas>
+      <div class="split-actions">
+        <button class="btn neutral" id="startCameraBtn" type="button">Start Camera</button>
+      </div>
+    </div>
+
+    <div class="stack-form">
+      <label>
+        Employee Selector
+        <select id="faceEmployeeId">
+          <option value="">Select employee</option>
+          <% employees.forEach((employee) => { %>
+            <option value="<%= employee.id %>">
+              <%= employee.employee_code %> - <%= employee.full_name %>
+            </option>
+          <% }) %>
+        </select>
+      </label>
+
+      <div class="biometric-indicators">
+        <div class="indicator-row">
+          <span>Face Enrollment</span>
+          <strong id="indicatorFaceStatus">Select employee</strong>
+        </div>
+        <div class="indicator-row">
+          <span>Last Updated</span>
+          <strong id="indicatorUpdatedAt">-</strong>
+        </div>
+      </div>
+
+      <label>
+        Verification Date
+        <input
+          id="biometricDate"
+          class="date-input"
+          type="text"
+          value="<%= today %>"
+          placeholder="dd-mm-yyyy"
+          inputmode="numeric"
+          pattern="\\d{2}-{1,2}\\d{2}-{1,2}\\d{4}"
+          required
+        />
+      </label>
+
+      <div class="split-actions">
+        <button class="btn primary" id="enrollFaceBtn" type="button">Enroll Face</button>
+        <button class="btn success" id="verifyFaceBtn" type="button">Verify Face</button>
+      </div>
+
+      <div class="split-actions">
+        <button class="btn danger" id="removeFaceBtn" type="button">Remove Face Profile</button>
+      </div>
+
+      <p id="faceStatus" class="status-line">Management console ready.</p>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h3>Enrollment History Log</h3>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Employee</th>
+          <th>Method</th>
+          <th>Result</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!biometricLogs.length) { %>
+          <tr>
+            <td colspan="5">No biometric logs yet.</td>
+          </tr>
+        <% } %>
+
+        <% biometricLogs.forEach((log) => { %>
+          <tr>
+            <td><%= formatDateTime(log.created_at) %></td>
+            <td><%= log.full_name ? `${log.full_name} (${log.employee_code})` : '-' %></td>
+            <td><span class="role-chip"><%= log.method %></span></td>
+            <td>
+              <span class="status-pill <%= log.success ? 'good' : 'bad' %>"><%= log.success ? 'success' : 'failed' %></span>
+            </td>
+            <td><%= log.details || '-' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  window.__employeeSummaries = <%- JSON.stringify(summaries) %>;
+</script>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="/public/js/biometric.js"></script>
+
+<%- include('partials/footer') %>
