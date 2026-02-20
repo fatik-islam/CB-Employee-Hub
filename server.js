@@ -3,9 +3,10 @@ import express from 'express';
 import session from 'express-session';
 import helmet from 'helmet';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import {
+import db, {
   addBiometricLog,
   createEmployee,
   createLeaveRequest,
@@ -34,11 +35,14 @@ import { isFaceMatch, normalizeDescriptor } from './services/biometric.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const require = createRequire(import.meta.url);
+const SQLiteStore = require('better-sqlite3-session-store')(session);
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const ORIGIN = process.env.RP_ORIGIN || `http://localhost:${PORT}`;
 const KIOSK_PIN = process.env.KIOSK_PIN || '2468';
+const IS_PROD = process.env.NODE_ENV === 'production';
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DMY_DATE_RE = /^(\d{2})-{1,2}(\d{2})-{1,2}(\d{4})$/;
 const SQL_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/;
@@ -137,16 +141,32 @@ app.use(
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: '3mb' }));
+
+if (IS_PROD) {
+  // Render terminates TLS at the proxy, so trust X-Forwarded-* for secure cookies.
+  app.set('trust proxy', 1);
+}
+
+const sessionStore = new SQLiteStore({
+  client: db,
+  expired: {
+    clear: true,
+    intervalMs: 15 * 60 * 1000,
+  },
+});
+
 app.use(
   session({
     name: 'cb_attendance_sid',
     secret: process.env.SESSION_SECRET || 'cb_attendance_please_change_me',
     resave: false,
     saveUninitialized: false,
+    proxy: IS_PROD,
+    store: sessionStore,
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
-      secure: false,
+      secure: IS_PROD,
       maxAge: 1000 * 60 * 60 * 10,
     },
   })
