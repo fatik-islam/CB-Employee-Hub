@@ -6,14 +6,81 @@ import path from 'node:path';
 
 const configuredDbPath = (process.env.DB_PATH || 'chickybites.db').trim();
 const dbPath = configuredDbPath === ':memory:' ? ':memory:' : path.resolve(configuredDbPath);
+const legacyDbPath = path.resolve('chickybites.db');
+
+const databaseRuntimeInfo = {
+  configuredDbPath,
+  resolvedDbPath: dbPath,
+  legacyDbPath,
+  usingMemoryDb: dbPath === ':memory:',
+  targetExistsBeforeOpen: false,
+  targetExistsAfterOpen: false,
+  targetFileSizeBytes: 0,
+  migratedFrom: null,
+  migrationReason: null,
+  migrationError: null,
+  migratedWalFile: false,
+  migratedShmFile: false,
+};
+
+const exists = (filePath) => {
+  try {
+    fs.accessSync(filePath, fs.constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const safeFileSize = (filePath) => {
+  try {
+    return fs.statSync(filePath).size || 0;
+  } catch {
+    return 0;
+  }
+};
 
 if (dbPath !== ':memory:') {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  databaseRuntimeInfo.targetExistsBeforeOpen = exists(dbPath);
+
+  const canMigrateFromLegacy =
+    !databaseRuntimeInfo.targetExistsBeforeOpen && dbPath !== legacyDbPath && exists(legacyDbPath);
+
+  if (canMigrateFromLegacy) {
+    try {
+      fs.copyFileSync(legacyDbPath, dbPath);
+      databaseRuntimeInfo.migratedFrom = legacyDbPath;
+      databaseRuntimeInfo.migrationReason = 'target_missing_legacy_found';
+
+      const legacyWal = `${legacyDbPath}-wal`;
+      const legacyShm = `${legacyDbPath}-shm`;
+      const targetWal = `${dbPath}-wal`;
+      const targetShm = `${dbPath}-shm`;
+
+      if (exists(legacyWal)) {
+        fs.copyFileSync(legacyWal, targetWal);
+        databaseRuntimeInfo.migratedWalFile = true;
+      }
+
+      if (exists(legacyShm)) {
+        fs.copyFileSync(legacyShm, targetShm);
+        databaseRuntimeInfo.migratedShmFile = true;
+      }
+    } catch (error) {
+      databaseRuntimeInfo.migrationError = error.message;
+    }
+  }
 }
 
 const db = new Database(dbPath);
 db.pragma('foreign_keys = ON');
 db.pragma('journal_mode = WAL');
+
+if (dbPath !== ':memory:') {
+  databaseRuntimeInfo.targetExistsAfterOpen = exists(dbPath);
+  databaseRuntimeInfo.targetFileSizeBytes = safeFileSize(dbPath);
+}
 
 const ATTENDANCE_STATUSES = ['present', 'absent', 'leave'];
 const LEAVE_STATUSES = ['pending', 'approved', 'rejected'];
@@ -582,5 +649,6 @@ export const getBiometricMetrics = () => {
 };
 
 export const isValidAttendanceStatus = (status) => ATTENDANCE_STATUSES.includes(status);
+export const getDatabaseRuntimeInfo = () => ({ ...databaseRuntimeInfo });
 
 export default db;
