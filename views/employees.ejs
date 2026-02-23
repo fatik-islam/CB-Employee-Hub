@@ -251,7 +251,25 @@
         <% employees.forEach((employee) => { %>
           <tr>
             <td><%= employee.employee_code %></td>
-            <td><%= employee.full_name %></td>
+            <td>
+              <button
+                class="employee-name-trigger"
+                type="button"
+                data-employee-view
+                data-employee-code="<%= employee.employee_code %>"
+                data-employee-name="<%= employee.full_name %>"
+                data-employee-phone="<%= employee.phone || '-' %>"
+                data-employee-position="<%= employee.position || '-' %>"
+                data-employee-role="<%= employee.role %>"
+                data-employee-status="<%= employee.status %>"
+                data-employee-cnic="<%= employee.cnic || '-' %>"
+                data-employee-address="<%= (employee.address || '-').replace(/\s+/g, ' ').trim() %>"
+                data-employee-joining-date="<%= employee.joining_date ? formatDate(employee.joining_date) : '-' %>"
+                data-employee-salary-date="<%= employee.salary_date ? formatDate(employee.salary_date) : '-' %>"
+              >
+                <%= employee.full_name %>
+              </button>
+            </td>
             <td><%= employee.position || '-' %></td>
             <td><span class="role-chip"><%= employee.role %></span></td>
             <td>
@@ -280,5 +298,57 @@
     </table>
   </div>
 </section>
+
+<div class="modal hidden employee-details-modal" id="employeeDetailsModal" role="dialog" aria-modal="true" aria-labelledby="employeeDetailsTitle">
+  <div class="modal-card employee-details-card">
+    <button class="employee-modal-close" id="employeeDetailsCloseBtn" type="button" aria-label="Close employee details">×</button>
+    <h3 id="employeeDetailsTitle">Employee Information</h3>
+
+    <div class="employee-details-grid">
+      <div class="employee-detail-item">
+        <span>Employee Code</span>
+        <strong id="employeeDetailsCode">-</strong>
+      </div>
+      <div class="employee-detail-item">
+        <span>Full Name</span>
+        <strong id="employeeDetailsName">-</strong>
+      </div>
+      <div class="employee-detail-item">
+        <span>Phone</span>
+        <strong id="employeeDetailsPhone">-</strong>
+      </div>
+      <div class="employee-detail-item">
+        <span>Position</span>
+        <strong id="employeeDetailsPosition">-</strong>
+      </div>
+      <div class="employee-detail-item">
+        <span>Employment Role</span>
+        <strong id="employeeDetailsRole">-</strong>
+      </div>
+      <div class="employee-detail-item">
+        <span>Status</span>
+        <strong id="employeeDetailsStatus">-</strong>
+      </div>
+      <div class="employee-detail-item">
+        <span>CNIC</span>
+        <strong id="employeeDetailsCnic">-</strong>
+      </div>
+      <div class="employee-detail-item">
+        <span>Joining Date</span>
+        <strong id="employeeDetailsJoiningDate">-</strong>
+      </div>
+      <div class="employee-detail-item">
+        <span>Salary Date</span>
+        <strong id="employeeDetailsSalaryDate">-</strong>
+      </div>
+      <div class="employee-detail-item employee-detail-item-full">
+        <span>Address</span>
+        <strong id="employeeDetailsAddress">-</strong>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/public/js/employee-directory.js"></script>
 
 <%- include('partials/footer') %>
