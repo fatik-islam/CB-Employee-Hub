@@ -13,6 +13,7 @@ import db, {
   deleteEmployee,
   deleteFaceProfile,
   findUserByEmail,
+  getDatabaseRuntimeInfo,
   getBiometricMetrics,
   getDashboardStats,
   getEmployeeBiometricSummary,
@@ -930,6 +931,36 @@ app.use((error, _req, res, _next) => {
 });
 
 app.listen(PORT, () => {
+  const dbInfo = getDatabaseRuntimeInfo();
+
+  // eslint-disable-next-line no-console
+  console.log(`[DB] DB_PATH="${dbInfo.configuredDbPath}" resolved="${dbInfo.resolvedDbPath}"`);
+  // eslint-disable-next-line no-console
+  console.log(
+    `[DB] exists_before_open=${dbInfo.targetExistsBeforeOpen} exists_after_open=${dbInfo.targetExistsAfterOpen} size_bytes=${dbInfo.targetFileSizeBytes}`
+  );
+
+  if (dbInfo.migratedFrom) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[DB] migrated_from="${dbInfo.migratedFrom}" wal_copied=${dbInfo.migratedWalFile} shm_copied=${dbInfo.migratedShmFile}`
+    );
+  }
+
+  if (dbInfo.migrationError) {
+    // eslint-disable-next-line no-console
+    console.warn(`[DB] migration_error="${dbInfo.migrationError}"`);
+  }
+
+  if (
+    process.env.NODE_ENV === 'production' &&
+    dbInfo.resolvedDbPath !== ':memory:' &&
+    !dbInfo.resolvedDbPath.startsWith('/var/data/')
+  ) {
+    // eslint-disable-next-line no-console
+    console.warn('[DB] DB_PATH is not under /var/data. Data can reset on Render restarts.');
+  }
+
   // eslint-disable-next-line no-console
   console.log(`Chicky Bites Attendance running at ${ORIGIN}`);
 });
