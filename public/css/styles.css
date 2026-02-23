@@ -788,6 +788,26 @@ tbody tr:hover {
   background: rgba(244, 163, 27, 0.09);
 }
 
+.employee-name-trigger {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: #123282;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: rgba(18, 50, 130, 0.34);
+  text-underline-offset: 3px;
+  transition: color 0.16s ease, text-decoration-color 0.16s ease;
+}
+
+.employee-name-trigger:hover,
+.employee-name-trigger:focus-visible {
+  color: #0a225f;
+  text-decoration-color: rgba(10, 34, 95, 0.86);
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -1074,6 +1094,10 @@ tbody tr:hover {
     padding: 14px;
   }
 
+  .employee-details-card {
+    width: min(520px, calc(100% - 20px));
+  }
+
   .modal-card .split-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1083,6 +1107,14 @@ tbody tr:hover {
   .modal-card .btn {
     min-width: 0;
     width: 100%;
+  }
+
+  .employee-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-detail-item-full {
+    grid-column: auto;
   }
 }
 
@@ -1170,6 +1202,10 @@ tbody tr:hover {
   z-index: 60;
 }
 
+.employee-details-modal {
+  z-index: 68;
+}
+
 .modal.hidden {
   display: none;
 }
@@ -1224,6 +1260,72 @@ tbody tr:hover {
 
 .modal-card .btn {
   min-width: 124px;
+}
+
+.employee-details-card {
+  width: min(700px, calc(100% - 30px));
+  padding-top: 46px;
+}
+
+.employee-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(203, 62, 62, 0.45);
+  background: rgba(203, 62, 62, 0.18);
+  color: #8a1212;
+  font-size: 1.3rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.employee-modal-close:hover,
+.employee-modal-close:focus-visible {
+  background: rgba(203, 62, 62, 0.3);
+  transform: translateY(-1px);
+}
+
+.employee-details-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.employee-detail-item {
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(26, 50, 127, 0.18);
+  background: rgba(255, 255, 255, 0.56);
+  padding: 10px;
+  min-height: 74px;
+  display: grid;
+  gap: 5px;
+}
+
+.employee-detail-item span {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #4f5f93;
+  font-weight: 800;
+}
+
+.employee-detail-item strong {
+  color: #10256d;
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.employee-detail-item-full {
+  grid-column: 1 / -1;
 }
 
 .kiosk-body {
