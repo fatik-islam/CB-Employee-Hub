@@ -258,6 +258,33 @@ textarea {
   letter-spacing: 0.02em;
 }
 
+.date-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.date-display-input {
+  min-width: 0;
+}
+
+.date-open-btn {
+  min-height: 40px;
+  padding-inline: 12px;
+}
+
+.date-native-input {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  opacity: 0.01;
+  pointer-events: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
 input::placeholder,
 textarea::placeholder {
   color: #7b85aa;
