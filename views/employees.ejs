@@ -27,6 +27,71 @@
     </label>
 
     <label>
+      CNIC
+      <input
+        name="cnic"
+        required
+        maxlength="15"
+        placeholder="45102-8391742-7"
+        inputmode="numeric"
+        pattern="\d{5}-\d{7}-\d"
+      />
+    </label>
+
+    <label class="full-width">
+      Address
+      <textarea name="address" rows="2" maxlength="300" placeholder="Employee address" required></textarea>
+    </label>
+
+    <label>
+      Joining Date
+      <div class="date-field" data-date-field>
+        <input
+          class="date-input date-display-input"
+          type="text"
+          name="joiningDate"
+          placeholder="dd-mm-yyyy"
+          inputmode="numeric"
+          pattern="\d{2}-{1,2}\d{2}-{1,2}\d{4}"
+          data-date-display
+          required
+        />
+        <input class="date-native-input" type="date" tabindex="-1" aria-hidden="true" data-date-native />
+        <button class="btn ghost date-open-btn" type="button" data-date-open aria-label="Open calendar" title="Open calendar">
+          <svg class="date-open-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M7 2.75a.75.75 0 0 1 .75.75V5h8.5V3.5a.75.75 0 0 1 1.5 0V5h1.5A2.75 2.75 0 0 1 22 7.75v11.5A2.75 2.75 0 0 1 19.25 22H4.75A2.75 2.75 0 0 1 2 19.25V7.75A2.75 2.75 0 0 1 4.75 5h1.5V3.5A.75.75 0 0 1 7 2.75ZM3.5 10v9.25c0 .69.56 1.25 1.25 1.25h14.5c.69 0 1.25-.56 1.25-1.25V10h-17Zm1.25-3.5c-.69 0-1.25.56-1.25 1.25V8.5h17v-.75c0-.69-.56-1.25-1.25-1.25H4.75Z"
+            />
+          </svg>
+        </button>
+      </div>
+    </label>
+
+    <label>
+      Salary Date
+      <div class="date-field" data-date-field>
+        <input
+          class="date-input date-display-input"
+          type="text"
+          name="salaryDate"
+          placeholder="dd-mm-yyyy"
+          inputmode="numeric"
+          pattern="\d{2}-{1,2}\d{2}-{1,2}\d{4}"
+          data-date-display
+          required
+        />
+        <input class="date-native-input" type="date" tabindex="-1" aria-hidden="true" data-date-native />
+        <button class="btn ghost date-open-btn" type="button" data-date-open aria-label="Open calendar" title="Open calendar">
+          <svg class="date-open-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M7 2.75a.75.75 0 0 1 .75.75V5h8.5V3.5a.75.75 0 0 1 1.5 0V5h1.5A2.75 2.75 0 0 1 22 7.75v11.5A2.75 2.75 0 0 1 19.25 22H4.75A2.75 2.75 0 0 1 2 19.25V7.75A2.75 2.75 0 0 1 4.75 5h1.5V3.5A.75.75 0 0 1 7 2.75ZM3.5 10v9.25c0 .69.56 1.25 1.25 1.25h14.5c.69 0 1.25-.56 1.25-1.25V10h-17Zm1.25-3.5c-.69 0-1.25.56-1.25 1.25V8.5h17v-.75c0-.69-.56-1.25-1.25-1.25H4.75Z"
+            />
+          </svg>
+        </button>
+      </div>
+    </label>
+
+    <label>
       Employment Role
       <select name="role" required>
         <option value="staff">Staff</option>
@@ -65,6 +130,74 @@
       <label>
         Position
         <input name="position" maxlength="80" value="<%= editingEmployee.position || '' %>" />
+      </label>
+
+      <label>
+        CNIC
+        <input
+          name="cnic"
+          required
+          maxlength="15"
+          value="<%= editingEmployee.cnic || '' %>"
+          placeholder="45102-8391742-7"
+          inputmode="numeric"
+          pattern="\d{5}-\d{7}-\d"
+        />
+      </label>
+
+      <label class="full-width">
+        Address
+        <textarea name="address" rows="2" maxlength="300" placeholder="Employee address" required><%= editingEmployee.address || '' %></textarea>
+      </label>
+
+      <label>
+        Joining Date
+        <div class="date-field" data-date-field>
+          <input
+            class="date-input date-display-input"
+            type="text"
+            name="joiningDate"
+            value="<%= editingEmployee.joining_date ? formatDate(editingEmployee.joining_date) : '' %>"
+            placeholder="dd-mm-yyyy"
+            inputmode="numeric"
+            pattern="\d{2}-{1,2}\d{2}-{1,2}\d{4}"
+            data-date-display
+            required
+          />
+          <input class="date-native-input" type="date" tabindex="-1" aria-hidden="true" data-date-native />
+          <button class="btn ghost date-open-btn" type="button" data-date-open aria-label="Open calendar" title="Open calendar">
+            <svg class="date-open-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M7 2.75a.75.75 0 0 1 .75.75V5h8.5V3.5a.75.75 0 0 1 1.5 0V5h1.5A2.75 2.75 0 0 1 22 7.75v11.5A2.75 2.75 0 0 1 19.25 22H4.75A2.75 2.75 0 0 1 2 19.25V7.75A2.75 2.75 0 0 1 4.75 5h1.5V3.5A.75.75 0 0 1 7 2.75ZM3.5 10v9.25c0 .69.56 1.25 1.25 1.25h14.5c.69 0 1.25-.56 1.25-1.25V10h-17Zm1.25-3.5c-.69 0-1.25.56-1.25 1.25V8.5h17v-.75c0-.69-.56-1.25-1.25-1.25H4.75Z"
+              />
+            </svg>
+          </button>
+        </div>
+      </label>
+
+      <label>
+        Salary Date
+        <div class="date-field" data-date-field>
+          <input
+            class="date-input date-display-input"
+            type="text"
+            name="salaryDate"
+            value="<%= editingEmployee.salary_date ? formatDate(editingEmployee.salary_date) : '' %>"
+            placeholder="dd-mm-yyyy"
+            inputmode="numeric"
+            pattern="\d{2}-{1,2}\d{2}-{1,2}\d{4}"
+            data-date-display
+            required
+          />
+          <input class="date-native-input" type="date" tabindex="-1" aria-hidden="true" data-date-native />
+          <button class="btn ghost date-open-btn" type="button" data-date-open aria-label="Open calendar" title="Open calendar">
+            <svg class="date-open-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M7 2.75a.75.75 0 0 1 .75.75V5h8.5V3.5a.75.75 0 0 1 1.5 0V5h1.5A2.75 2.75 0 0 1 22 7.75v11.5A2.75 2.75 0 0 1 19.25 22H4.75A2.75 2.75 0 0 1 2 19.25V7.75A2.75 2.75 0 0 1 4.75 5h1.5V3.5A.75.75 0 0 1 7 2.75ZM3.5 10v9.25c0 .69.56 1.25 1.25 1.25h14.5c.69 0 1.25-.56 1.25-1.25V10h-17Zm1.25-3.5c-.69 0-1.25.56-1.25 1.25V8.5h17v-.75c0-.69-.56-1.25-1.25-1.25H4.75Z"
+              />
+            </svg>
+          </button>
+        </div>
       </label>
 
       <label>
