@@ -44,6 +44,7 @@ const PORT = Number(process.env.PORT || 3000);
 const ORIGIN = process.env.RP_ORIGIN || `http://localhost:${PORT}`;
 const KIOSK_PIN = process.env.KIOSK_PIN || '2468';
 const IS_PROD = process.env.NODE_ENV === 'production';
+const CNIC_RE = /^\d{5}-\d{7}-\d$/;
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DMY_DATE_RE = /^(\d{2})-{1,2}(\d{2})-{1,2}(\d{4})$/;
 const SQL_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/;
@@ -348,6 +349,10 @@ app.post('/employees', requireRoles('admin'), (req, res) => {
     fullName: z.string().trim().min(2).max(120),
     phone: z.string().trim().max(30).optional().or(z.literal('')),
     position: z.string().trim().max(80).optional().or(z.literal('')),
+    cnic: z.string().trim().regex(CNIC_RE, 'CNIC format must be like 45102-8391742-7.'),
+    address: z.string().trim().min(5).max(300),
+    joiningDate: z.string().trim().min(1),
+    salaryDate: z.string().trim().min(1),
     role: z.enum(['manager', 'staff']),
   });
 
@@ -359,18 +364,41 @@ app.post('/employees', requireRoles('admin'), (req, res) => {
 
   try {
     const payload = parsed.data;
+    const joiningDateIso = parseDateIn(payload.joiningDate, null);
+    const salaryDateIso = parseDateIn(payload.salaryDate, null);
+
+    if (!joiningDateIso || !salaryDateIso) {
+      setFlash(req, 'Invalid joining/salary date. Use dd-mm-yyyy.', 'error');
+      return res.redirect('/employees');
+    }
+
     createEmployee({
       employeeCode: payload.employeeCode,
       fullName: payload.fullName,
       phone: payload.phone,
       position: payload.position,
+      cnic: payload.cnic,
+      address: payload.address,
+      joiningDate: joiningDateIso,
+      salaryDate: salaryDateIso,
       role: payload.role,
     });
 
     setFlash(req, `Employee ${payload.fullName} was added.`, 'success');
     return res.redirect('/employees');
   } catch (error) {
-    setFlash(req, error.message.includes('UNIQUE') ? 'Employee code already exists.' : error.message, 'error');
+    const isUnique = error.message.includes('UNIQUE');
+    const isCodeUnique = error.message.includes('employee_code');
+    const isCnicUnique =
+      error.message.includes('employees.cnic') || error.message.includes('idx_employees_cnic_unique');
+    const message = isUnique
+      ? isCnicUnique
+        ? 'CNIC already exists.'
+        : isCodeUnique
+          ? 'Employee code already exists.'
+          : 'Employee code/CNIC must be unique.'
+      : error.message;
+    setFlash(req, message, 'error');
     return res.redirect('/employees');
   }
 });
@@ -389,6 +417,10 @@ app.post('/employees/:id/update', requireRoles('admin'), (req, res) => {
     fullName: z.string().trim().min(2).max(120),
     phone: z.string().trim().max(30).optional().or(z.literal('')),
     position: z.string().trim().max(80).optional().or(z.literal('')),
+    cnic: z.string().trim().regex(CNIC_RE, 'CNIC format must be like 45102-8391742-7.'),
+    address: z.string().trim().min(5).max(300),
+    joiningDate: z.string().trim().min(1),
+    salaryDate: z.string().trim().min(1),
     role: z.enum(['manager', 'staff']),
     status: z.enum(['active', 'inactive']),
   });
@@ -401,12 +433,24 @@ app.post('/employees/:id/update', requireRoles('admin'), (req, res) => {
 
   try {
     const payload = parsed.data;
+    const joiningDateIso = parseDateIn(payload.joiningDate, null);
+    const salaryDateIso = parseDateIn(payload.salaryDate, null);
+
+    if (!joiningDateIso || !salaryDateIso) {
+      setFlash(req, 'Invalid joining/salary date. Use dd-mm-yyyy.', 'error');
+      return res.redirect(`/employees?edit=${encodeURIComponent(employeeId)}`);
+    }
+
     updateEmployee({
       employeeId,
       employeeCode: payload.employeeCode,
       fullName: payload.fullName,
       phone: payload.phone,
       position: payload.position,
+      cnic: payload.cnic,
+      address: payload.address,
+      joiningDate: joiningDateIso,
+      salaryDate: salaryDateIso,
       role: payload.role,
       status: payload.status,
     });
@@ -414,7 +458,18 @@ app.post('/employees/:id/update', requireRoles('admin'), (req, res) => {
     setFlash(req, `${payload.fullName} updated successfully.`, 'success');
     return res.redirect('/employees');
   } catch (error) {
-    setFlash(req, error.message.includes('UNIQUE') ? 'Employee code already exists.' : error.message, 'error');
+    const isUnique = error.message.includes('UNIQUE');
+    const isCodeUnique = error.message.includes('employee_code');
+    const isCnicUnique =
+      error.message.includes('employees.cnic') || error.message.includes('idx_employees_cnic_unique');
+    const message = isUnique
+      ? isCnicUnique
+        ? 'CNIC already exists.'
+        : isCodeUnique
+          ? 'Employee code already exists.'
+          : 'Employee code/CNIC must be unique.'
+      : error.message;
+    setFlash(req, message, 'error');
     return res.redirect(`/employees?edit=${encodeURIComponent(employeeId)}`);
   }
 });
