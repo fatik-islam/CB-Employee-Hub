@@ -95,6 +95,10 @@ db.exec(`
     full_name TEXT NOT NULL,
     phone TEXT,
     position TEXT,
+    cnic TEXT,
+    address TEXT,
+    joining_date TEXT,
+    salary_date TEXT,
     role TEXT NOT NULL CHECK(role IN ('manager', 'staff')),
     status TEXT NOT NULL CHECK(status IN ('active', 'inactive')) DEFAULT 'active',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -168,6 +172,32 @@ db.exec(`
   );
 `);
 
+const tableHasColumn = (tableName, columnName) => {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  return columns.some((column) => column.name === columnName);
+};
+
+const ensureEmployeesSchema = () => {
+  if (!tableHasColumn('employees', 'cnic')) {
+    db.exec('ALTER TABLE employees ADD COLUMN cnic TEXT');
+  }
+
+  if (!tableHasColumn('employees', 'address')) {
+    db.exec('ALTER TABLE employees ADD COLUMN address TEXT');
+  }
+
+  if (!tableHasColumn('employees', 'joining_date')) {
+    db.exec('ALTER TABLE employees ADD COLUMN joining_date TEXT');
+  }
+
+  if (!tableHasColumn('employees', 'salary_date')) {
+    db.exec('ALTER TABLE employees ADD COLUMN salary_date TEXT');
+  }
+};
+
+ensureEmployeesSchema();
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_cnic_unique ON employees(cnic) WHERE cnic IS NOT NULL`);
+
 const seedAdmin = () => {
   const email = (process.env.ADMIN_EMAIL || 'admin@chickybites.com').trim().toLowerCase();
   const configuredPassword = process.env.ADMIN_PASSWORD?.trim();
@@ -240,19 +270,34 @@ export const findUserByEmail = (email) =>
 export const findUserById = (id) =>
   db.prepare('SELECT * FROM users WHERE id = ? AND active = 1 LIMIT 1').get(id);
 
-export const createEmployee = ({ employeeCode, fullName, phone, position, role }) => {
+export const createEmployee = ({
+  employeeCode,
+  fullName,
+  phone,
+  position,
+  cnic,
+  address,
+  joiningDate,
+  salaryDate,
+  role,
+}) => {
   const employeeId = randomUUID();
   const safeRole = cleanEmployeeRole(role);
 
   db.prepare(
-    `INSERT INTO employees (id, employee_code, full_name, phone, position, role, status)
-     VALUES (?, ?, ?, ?, ?, ?, 'active')`
+    `INSERT INTO employees (
+      id, employee_code, full_name, phone, position, cnic, address, joining_date, salary_date, role, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')`
   ).run(
     employeeId,
     employeeCode,
     fullName,
     phone || null,
     position || null,
+    cnic || null,
+    address || null,
+    joiningDate || null,
+    salaryDate || null,
     safeRole
   );
 
@@ -265,6 +310,10 @@ export const updateEmployee = ({
   fullName,
   phone,
   position,
+  cnic,
+  address,
+  joiningDate,
+  salaryDate,
   role,
   status,
 }) => {
@@ -277,6 +326,10 @@ export const updateEmployee = ({
          full_name = ?,
          phone = ?,
          position = ?,
+         cnic = ?,
+         address = ?,
+         joining_date = ?,
+         salary_date = ?,
          role = ?,
          status = ?
      WHERE id = ?`
@@ -285,6 +338,10 @@ export const updateEmployee = ({
     fullName,
     phone || null,
     position || null,
+    cnic || null,
+    address || null,
+    joiningDate || null,
+    salaryDate || null,
     safeRole,
     safeStatus,
     employeeId
