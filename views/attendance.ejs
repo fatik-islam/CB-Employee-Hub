@@ -8,16 +8,21 @@
   <form action="/attendance" method="get" class="inline-form">
     <label>
       Date
-      <input
-        class="date-input"
-        type="text"
-        name="date"
-        value="<%= formatDate(date) %>"
-        placeholder="dd-mm-yyyy"
-        inputmode="numeric"
-        pattern="\\d{2}-{1,2}\\d{2}-{1,2}\\d{4}"
-        required
-      />
+      <div class="date-field" data-date-field>
+        <input
+          class="date-input date-display-input"
+          type="text"
+          name="date"
+          value="<%= formatDate(date) %>"
+          placeholder="dd-mm-yyyy"
+          inputmode="numeric"
+          pattern="\\d{2}-{1,2}\\d{2}-{1,2}\\d{4}"
+          data-date-display
+          required
+        />
+        <input class="date-native-input" type="date" tabindex="-1" aria-hidden="true" data-date-native />
+        <button class="btn ghost date-open-btn" type="button" data-date-open>Calendar</button>
+      </div>
     </label>
     <button class="btn ghost" type="submit">Load</button>
   </form>
