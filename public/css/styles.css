@@ -271,7 +271,16 @@ textarea {
 
 .date-open-btn {
   min-height: 40px;
-  padding-inline: 12px;
+  min-width: 40px;
+  width: 40px;
+  padding: 0;
+}
+
+.date-open-icon {
+  width: 18px;
+  height: 18px;
+  fill: #183b90;
+  display: block;
 }
 
 .date-native-input {
