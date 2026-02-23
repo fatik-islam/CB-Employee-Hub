@@ -18,28 +18,38 @@
 
     <label>
       Start Date
-      <input
-        class="date-input"
-        type="text"
-        name="startDate"
-        placeholder="dd-mm-yyyy"
-        inputmode="numeric"
-        pattern="\\d{2}-{1,2}\\d{2}-{1,2}\\d{4}"
-        required
-      />
+      <div class="date-field" data-date-field>
+        <input
+          class="date-input date-display-input"
+          type="text"
+          name="startDate"
+          placeholder="dd-mm-yyyy"
+          inputmode="numeric"
+          pattern="\\d{2}-{1,2}\\d{2}-{1,2}\\d{4}"
+          data-date-display
+          required
+        />
+        <input class="date-native-input" type="date" tabindex="-1" aria-hidden="true" data-date-native />
+        <button class="btn ghost date-open-btn" type="button" data-date-open>Calendar</button>
+      </div>
     </label>
 
     <label>
       End Date
-      <input
-        class="date-input"
-        type="text"
-        name="endDate"
-        placeholder="dd-mm-yyyy"
-        inputmode="numeric"
-        pattern="\\d{2}-{1,2}\\d{2}-{1,2}\\d{4}"
-        required
-      />
+      <div class="date-field" data-date-field>
+        <input
+          class="date-input date-display-input"
+          type="text"
+          name="endDate"
+          placeholder="dd-mm-yyyy"
+          inputmode="numeric"
+          pattern="\\d{2}-{1,2}\\d{2}-{1,2}\\d{4}"
+          data-date-display
+          required
+        />
+        <input class="date-native-input" type="date" tabindex="-1" aria-hidden="true" data-date-native />
+        <button class="btn ghost date-open-btn" type="button" data-date-open>Calendar</button>
+      </div>
     </label>
 
     <label class="full-width">
