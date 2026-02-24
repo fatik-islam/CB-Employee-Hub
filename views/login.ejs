@@ -29,7 +29,12 @@
       </div>
 
       <% if (flash) { %>
-        <div class="alert <%= flash.type %>"><%= flash.message %></div>
+        <div
+          id="flashToastData"
+          hidden
+          data-flash-type="<%= flash.type %>"
+          data-flash-message="<%= flash.message %>"
+        ></div>
       <% } %>
 
       <form action="/login" method="post" class="stack-form">
@@ -50,5 +55,6 @@
         <a class="btn neutral" href="/kiosk-login">Kiosk Access</a>
       </div>
     </main>
+    <script src="/public/js/toast.js"></script>
   </body>
 </html>
