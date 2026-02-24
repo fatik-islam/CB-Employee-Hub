@@ -144,6 +144,16 @@ app.use(
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: '3mb' }));
 
+// Handle malformed JSON payloads early with a clear response.
+app.use((error, _req, res, next) => {
+  if (!(error instanceof SyntaxError) || !('body' in error)) {
+    next(error);
+    return;
+  }
+
+  res.status(400).json({ ok: false, error: 'Invalid JSON payload.' });
+});
+
 if (IS_PROD) {
   // Render terminates TLS at the proxy, so trust X-Forwarded-* for secure cookies.
   app.set('trust proxy', 1);
@@ -196,6 +206,23 @@ app.use((req, res, next) => {
 
 const setFlash = (req, message, type = 'info') => {
   req.session.flash = { type, message };
+};
+
+const formatUnexpectedError = (error) => {
+  if (!IS_PROD && error?.message) {
+    return error.message;
+  }
+
+  return 'Unexpected server error. Please retry.';
+};
+
+const sendApiError = (res, error, status = 500) => {
+  // eslint-disable-next-line no-console
+  console.error('[API_ERROR]', error);
+  return res.status(status).json({
+    ok: false,
+    error: formatUnexpectedError(error),
+  });
 };
 
 const parseDateIn = (value, fallback) => {
@@ -705,7 +732,7 @@ app.post('/api/biometric/face/enroll', requireRoles('admin'), (req, res) => {
 
     return res.json({ ok: true, message: 'Face profile enrolled successfully.' });
   } catch (error) {
-    return res.status(500).json({ ok: false, error: error.message });
+    return sendApiError(res, error);
   }
 });
 
@@ -735,7 +762,7 @@ app.post('/api/biometric/face/delete', requireRoles('admin'), (req, res) => {
 
     return res.json({ ok: true, message: removed ? 'Face profile removed.' : 'No face profile existed.' });
   } catch (error) {
-    return res.status(500).json({ ok: false, error: error.message });
+    return sendApiError(res, error);
   }
 });
 
@@ -816,7 +843,7 @@ app.post('/api/biometric/face/verify', requireRoles('admin'), (req, res) => {
       message: 'Face verified and attendance marked present.',
     });
   } catch (error) {
-    return res.status(500).json({ ok: false, error: error.message });
+    return sendApiError(res, error);
   }
 });
 
@@ -912,7 +939,7 @@ app.post('/api/attendance/face/identify', requireKioskOrAdmin, (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ ok: false, error: error.message });
+    return sendApiError(res, error);
   }
 });
 
@@ -952,7 +979,7 @@ app.post('/api/attendance/confirm', requireKioskOrAdmin, (req, res) => {
       record,
     });
   } catch (error) {
-    return res.status(500).json({ ok: false, error: error.message });
+    return sendApiError(res, error);
   }
 });
 
@@ -978,14 +1005,21 @@ app.use((_req, res) => {
   });
 });
 
-app.use((error, _req, res, _next) => {
-  res.status(500).render('error', {
+app.use((error, req, res, _next) => {
+  // eslint-disable-next-line no-console
+  console.error('[UNHANDLED_REQUEST_ERROR]', error);
+
+  if (req.path.startsWith('/api/')) {
+    return sendApiError(res, error);
+  }
+
+  return res.status(500).render('error', {
     pageTitle: 'Server Error',
-    message: error.message || 'Unexpected error occurred.',
+    message: formatUnexpectedError(error),
   });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   const dbInfo = getDatabaseRuntimeInfo();
 
   // eslint-disable-next-line no-console
@@ -1018,4 +1052,32 @@ app.listen(PORT, () => {
 
   // eslint-disable-next-line no-console
   console.log(`Chicky Bites Attendance running at ${ORIGIN}`);
+});
+
+let shuttingDown = false;
+const gracefulShutdown = (signal) => {
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
+  // eslint-disable-next-line no-console
+  console.error(`[FATAL] ${signal}. Closing server...`);
+  server.close(() => {
+    process.exit(1);
+  });
+
+  setTimeout(() => {
+    process.exit(1);
+  }, 5000).unref();
+};
+
+process.on('unhandledRejection', (reason) => {
+  // eslint-disable-next-line no-console
+  console.error('[UNHANDLED_REJECTION]', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  // eslint-disable-next-line no-console
+  console.error('[UNCAUGHT_EXCEPTION]', error);
+  gracefulShutdown('uncaughtException');
 });
