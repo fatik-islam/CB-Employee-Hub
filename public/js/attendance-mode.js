@@ -1,6 +1,7 @@
 (() => {
   const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
   const SQL_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2})?)?$/;
+  const REQUEST_TIMEOUT_MS = 15000;
 
   const shell = document.querySelector('.kiosk-shell');
   const video = document.getElementById('kioskVideo');
@@ -65,9 +66,32 @@
     resetTimer: null,
   };
 
+  const toastState = {
+    message: '',
+    tone: '',
+    time: 0,
+  };
+
   const setStatus = (message, tone = 'info') => {
     statusEl.textContent = message;
     statusEl.className = `kiosk-status ${tone}`;
+
+    if (tone !== 'success' && tone !== 'error') {
+      return;
+    }
+
+    const now = Date.now();
+    if (
+      !window.AppUI?.notify ||
+      (toastState.message === message && toastState.tone === tone && now - toastState.time <= 1800)
+    ) {
+      return;
+    }
+
+    window.AppUI.notify({ type: tone, message });
+    toastState.message = message;
+    toastState.tone = tone;
+    toastState.time = now;
   };
 
   const setChip = (element, text, tone = 'neutral') => {
@@ -80,22 +104,40 @@
   };
 
   const fetchJson = async (url, payload) => {
-    const response = await fetch(url, {
-      method: payload ? 'POST' : 'GET',
-      headers: payload
-        ? {
-            'Content-Type': 'application/json',
-          }
-        : undefined,
-      body: payload ? JSON.stringify(payload) : undefined,
-    });
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(data.error || 'Request failed');
+    try {
+      const response = await fetch(url, {
+        method: payload ? 'POST' : 'GET',
+        headers: payload
+          ? {
+              'Content-Type': 'application/json',
+            }
+          : undefined,
+        body: payload ? JSON.stringify(payload) : undefined,
+        signal: controller.signal,
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || `Request failed (${response.status})`);
+      }
+
+      return data;
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        throw new Error('Request timed out. Please retry.');
+      }
+
+      if (error instanceof TypeError) {
+        throw new Error('Network error. Check connection and retry.');
+      }
+
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
     }
-
-    return data;
   };
 
   const loadModels = async () => {
