@@ -1,6 +1,7 @@
 (() => {
   const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
   const DMY_DATE_RE = /^(\d{2})-{1,2}(\d{2})-{1,2}(\d{4})$/;
+  const MOBILE_QUERY = '(max-width: 920px)';
 
   const toDisplayDate = (value) => {
     const text = String(value || '').trim();
@@ -38,6 +39,16 @@
       return;
     }
 
+    const enableMobileNativeMode = () => {
+      field.classList.add('mobile-native-date');
+      nativeInput.removeAttribute('aria-hidden');
+      nativeInput.tabIndex = 0;
+    };
+
+    if (window.matchMedia(MOBILE_QUERY).matches || 'ontouchstart' in window) {
+      enableMobileNativeMode();
+    }
+
     const syncNativeFromDisplay = () => {
       const iso = toIsoDate(displayInput.value);
       nativeInput.value = iso;
@@ -54,12 +65,17 @@
       if (typeof nativeInput.showPicker === 'function') {
         nativeInput.showPicker();
       } else {
+        if (field.classList.contains('mobile-native-date')) {
+          nativeInput.focus();
+          return;
+        }
         nativeInput.focus();
         nativeInput.click();
       }
     });
 
     nativeInput.addEventListener('change', syncDisplayFromNative);
+    nativeInput.addEventListener('input', syncDisplayFromNative);
 
     displayInput.addEventListener('blur', () => {
       const normalized = toDisplayDate(displayInput.value);
