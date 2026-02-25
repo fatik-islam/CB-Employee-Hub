@@ -1167,6 +1167,29 @@ tbody tr:hover {
   .inline-manage input {
     width: 100%;
   }
+
+  .date-field.mobile-native-date {
+    grid-template-columns: 1fr;
+  }
+
+  .date-field.mobile-native-date .date-display-input,
+  .date-field.mobile-native-date .date-open-btn {
+    display: none;
+  }
+
+  .date-field.mobile-native-date .date-native-input {
+    position: static;
+    width: 100%;
+    height: auto;
+    opacity: 1;
+    pointer-events: auto;
+    border: 1px solid rgba(26, 50, 127, 0.22);
+    border-radius: var(--radius-md);
+    padding: 9px 10px;
+    margin: 0;
+    color: #14265f;
+    background: rgba(255, 255, 255, 0.9);
+  }
 }
 
 @media (max-width: 760px) {
