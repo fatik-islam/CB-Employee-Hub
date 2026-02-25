@@ -935,6 +935,111 @@ tbody tr:hover {
   background: rgba(244, 163, 27, 0.09);
 }
 
+.attendance-records-table {
+  border-color: rgba(184, 201, 244, 0.62);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(243, 247, 255, 0.34));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.attendance-records-grid {
+  min-width: 840px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.attendance-records-grid th {
+  padding: 7px 10px;
+  background: rgba(238, 229, 206, 0.84);
+  color: #173378;
+  font-size: 0.69rem;
+  letter-spacing: 0.045em;
+  white-space: nowrap;
+}
+
+.attendance-records-grid td {
+  padding: 6px 10px;
+  line-height: 1.3;
+  color: #1f3168;
+  border-bottom-color: rgba(24, 49, 124, 0.09);
+  vertical-align: middle;
+}
+
+.attendance-records-grid tbody tr:nth-child(2n) {
+  background: rgba(255, 255, 255, 0.36);
+}
+
+.attendance-records-grid tbody tr:nth-child(2n + 1) {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.attendance-records-grid tbody tr:hover {
+  background: rgba(244, 163, 27, 0.08);
+}
+
+.attendance-records-grid .status-pill {
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+}
+
+.attendance-records-grid th:nth-child(1),
+.attendance-records-grid td:nth-child(1) {
+  width: 88px;
+}
+
+.attendance-records-grid th:nth-child(4),
+.attendance-records-grid td:nth-child(4) {
+  width: 96px;
+}
+
+.attendance-records-grid th:nth-child(5),
+.attendance-records-grid td:nth-child(5) {
+  width: 90px;
+}
+
+.attendance-records-grid th:nth-child(6),
+.attendance-records-grid td:nth-child(6) {
+  width: 168px;
+  white-space: nowrap;
+}
+
+.attendance-records-grid .inline-manage {
+  display: grid;
+  grid-template-columns: minmax(92px, 108px) minmax(136px, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  max-width: 420px;
+}
+
+.attendance-records-grid .inline-manage select,
+.attendance-records-grid .inline-manage input {
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 0.82rem;
+}
+
+.attendance-records-grid .inline-manage input {
+  width: 100%;
+}
+
+.attendance-records-grid .inline-manage .btn {
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 1180px) {
+  .attendance-records-grid .inline-manage {
+    grid-template-columns: 1fr 1fr;
+    max-width: 360px;
+  }
+
+  .attendance-records-grid .inline-manage .btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
 .employee-name-trigger {
   border: none;
   background: transparent;
@@ -1344,6 +1449,33 @@ tbody tr:hover {
 
   .table-wrap.mobile-cards td[colspan]::before {
     content: none;
+  }
+
+  .attendance-records-table.mobile-cards tbody tr {
+    padding: 7px 9px;
+    border-color: rgba(190, 204, 243, 0.62);
+    background: rgba(255, 255, 255, 0.52);
+  }
+
+  .attendance-records-table.mobile-cards td {
+    padding: 6px 0;
+  }
+
+  .attendance-records-table.mobile-cards .status-pill {
+    justify-self: start;
+  }
+
+  .attendance-records-table.mobile-cards .inline-manage {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 7px;
+    max-width: none;
+  }
+
+  .attendance-records-table.mobile-cards .inline-manage .btn {
+    grid-column: auto;
+    width: 100%;
   }
 
   .table-wrap.mobile-cards .split-actions {
