@@ -1,7 +1,19 @@
 (() => {
   const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-  const SQL_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2})?)?$/;
+  const SQL_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/;
+  const PK_TIME_ZONE = 'Asia/Karachi';
   const REQUEST_TIMEOUT_MS = 15000;
+  const PK_DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
+    timeZone: PK_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  const getDatePart = (parts, type) => parts.find((item) => item.type === type)?.value || '';
 
   const shell = document.querySelector('.kiosk-shell');
   const video = document.getElementById('kioskVideo');
@@ -48,8 +60,19 @@
     if (!match) {
       return formatDate(text);
     }
-    const [, year, month, day, hour = '00', minute = '00'] = match;
-    return `${day}-${month}-${year} ${hour}:${minute}`;
+
+    const [, year, month, day, hour = '00', minute = '00', second = '00'] = match;
+    const utcDate = new Date(
+      Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second))
+    );
+    const pkParts = PK_DATE_TIME_FORMATTER.formatToParts(utcDate);
+    const pkDay = getDatePart(pkParts, 'day');
+    const pkMonth = getDatePart(pkParts, 'month');
+    const pkYear = getDatePart(pkParts, 'year');
+    const pkHour = getDatePart(pkParts, 'hour');
+    const pkMinute = getDatePart(pkParts, 'minute');
+    const pkPeriod = getDatePart(pkParts, 'dayPeriod').toLowerCase();
+    return `${pkDay}-${pkMonth}-${pkYear} ${pkHour}:${pkMinute} ${pkPeriod}`;
   };
 
   const state = {
