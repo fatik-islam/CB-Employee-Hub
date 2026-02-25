@@ -44,13 +44,38 @@ const PORT = Number(process.env.PORT || 3000);
 const ORIGIN = process.env.RP_ORIGIN || `http://localhost:${PORT}`;
 const KIOSK_PIN = process.env.KIOSK_PIN || '2468';
 const IS_PROD = process.env.NODE_ENV === 'production';
+const PK_TIME_ZONE = 'Asia/Karachi';
 const CNIC_RE = /^\d{5}-\d{7}-\d$/;
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DMY_DATE_RE = /^(\d{2})-{1,2}(\d{2})-{1,2}(\d{4})$/;
 const SQL_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/;
 
 const pad2 = (value) => String(value).padStart(2, '0');
-const isoToday = () => new Date().toISOString().slice(0, 10);
+const PK_DATE_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  timeZone: PK_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+const PK_DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: PK_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+});
+
+const getDatePart = (parts, type) => parts.find((entry) => entry.type === type)?.value || '';
+
+const isoToday = () => {
+  const parts = PK_DATE_FORMATTER.formatToParts(new Date());
+  const year = getDatePart(parts, 'year');
+  const month = getDatePart(parts, 'month');
+  const day = getDatePart(parts, 'day');
+  return `${year}-${month}-${day}`;
+};
 
 const isValidDateParts = (year, month, day) => {
   const candidate = new Date(Date.UTC(year, month - 1, day));
@@ -115,8 +140,23 @@ const formatDateTime = (value) => {
   const raw = String(value).trim();
   const parts = raw.match(SQL_DATETIME_RE);
   if (parts) {
-    const [, year, month, day, hour = '00', minute = '00'] = parts;
-    return `${day}-${month}-${year} ${hour}:${minute}`;
+    const [, year, month, day, hour = '00', minute = '00', second = '00'] = parts;
+    const timestamp = Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second)
+    );
+    const pkParts = PK_DATE_TIME_FORMATTER.formatToParts(new Date(timestamp));
+    const pkDay = getDatePart(pkParts, 'day');
+    const pkMonth = getDatePart(pkParts, 'month');
+    const pkYear = getDatePart(pkParts, 'year');
+    const pkHour = getDatePart(pkParts, 'hour');
+    const pkMinute = getDatePart(pkParts, 'minute');
+    const pkPeriod = getDatePart(pkParts, 'dayPeriod').toLowerCase();
+    return `${pkDay}-${pkMonth}-${pkYear} ${pkHour}:${pkMinute} ${pkPeriod}`;
   }
 
   return formatDate(raw);
