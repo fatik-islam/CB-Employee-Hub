@@ -1,0 +1,2 @@
+# Ensure GitHub includes the native iOS source in repository language statistics.
+ios/**/*.swift linguist-language=Swift linguist-detectable
