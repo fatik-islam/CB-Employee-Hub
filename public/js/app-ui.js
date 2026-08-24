@@ -75,6 +75,13 @@
 
       form.dataset.confirmed = '1';
       form.submit();
+    }).catch((error) => {
+      if (window.AppUI?.notify) {
+        window.AppUI.notify({
+          type: 'error',
+          message: error?.message || 'Confirmation dialog failed. Please retry.',
+        });
+      }
     });
   });
 

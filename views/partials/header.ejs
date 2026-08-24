@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><%= pageTitle %> | Chicky Bites Attendance</title>
+    <title><%= pageTitle %> | CB Employee Hub</title>
+    <link rel="icon" type="image/png" href="/assets/logo.png" />
+    <link rel="shortcut icon" type="image/png" href="/assets/logo.png" />
+    <link rel="apple-touch-icon" href="/assets/logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -41,7 +44,10 @@
       <main class="main-content">
         <header class="topbar">
           <div class="topbar-left">
-            <h2><%= pageTitle %></h2>
+            <div class="topbar-title">
+              <img src="/assets/logo.png" alt="Chicky Bites logo" class="topbar-page-logo" />
+              <h2><%= pageTitle %></h2>
+            </div>
           </div>
 
           <div class="topbar-right">
@@ -61,5 +67,10 @@
         </header>
 
         <% if (flash) { %>
-          <div class="alert <%= flash.type %>"><%= flash.message %></div>
+          <div
+            id="flashToastData"
+            hidden
+            data-flash-type="<%= flash.type %>"
+            data-flash-message="<%= flash.message %>"
+          ></div>
         <% } %>

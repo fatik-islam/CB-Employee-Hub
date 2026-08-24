@@ -1,6 +1,19 @@
 (() => {
   const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-  const SQL_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2})?)?$/;
+  const SQL_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/;
+  const PK_TIME_ZONE = 'Asia/Karachi';
+  const REQUEST_TIMEOUT_MS = 15000;
+  const PK_DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
+    timeZone: PK_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  const getDatePart = (parts, type) => parts.find((item) => item.type === type)?.value || '';
 
   const shell = document.querySelector('.kiosk-shell');
   const video = document.getElementById('kioskVideo');
@@ -47,8 +60,19 @@
     if (!match) {
       return formatDate(text);
     }
-    const [, year, month, day, hour = '00', minute = '00'] = match;
-    return `${day}-${month}-${year} ${hour}:${minute}`;
+
+    const [, year, month, day, hour = '00', minute = '00', second = '00'] = match;
+    const utcDate = new Date(
+      Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second))
+    );
+    const pkParts = PK_DATE_TIME_FORMATTER.formatToParts(utcDate);
+    const pkDay = getDatePart(pkParts, 'day');
+    const pkMonth = getDatePart(pkParts, 'month');
+    const pkYear = getDatePart(pkParts, 'year');
+    const pkHour = getDatePart(pkParts, 'hour');
+    const pkMinute = getDatePart(pkParts, 'minute');
+    const pkPeriod = getDatePart(pkParts, 'dayPeriod').toLowerCase();
+    return `${pkDay}-${pkMonth}-${pkYear} ${pkHour}:${pkMinute} ${pkPeriod}`;
   };
 
   const state = {
@@ -65,9 +89,32 @@
     resetTimer: null,
   };
 
+  const toastState = {
+    message: '',
+    tone: '',
+    time: 0,
+  };
+
   const setStatus = (message, tone = 'info') => {
     statusEl.textContent = message;
     statusEl.className = `kiosk-status ${tone}`;
+
+    if (tone !== 'success' && tone !== 'error') {
+      return;
+    }
+
+    const now = Date.now();
+    if (
+      !window.AppUI?.notify ||
+      (toastState.message === message && toastState.tone === tone && now - toastState.time <= 1800)
+    ) {
+      return;
+    }
+
+    window.AppUI.notify({ type: tone, message });
+    toastState.message = message;
+    toastState.tone = tone;
+    toastState.time = now;
   };
 
   const setChip = (element, text, tone = 'neutral') => {
@@ -80,22 +127,40 @@
   };
 
   const fetchJson = async (url, payload) => {
-    const response = await fetch(url, {
-      method: payload ? 'POST' : 'GET',
-      headers: payload
-        ? {
-            'Content-Type': 'application/json',
-          }
-        : undefined,
-      body: payload ? JSON.stringify(payload) : undefined,
-    });
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(data.error || 'Request failed');
+    try {
+      const response = await fetch(url, {
+        method: payload ? 'POST' : 'GET',
+        headers: payload
+          ? {
+              'Content-Type': 'application/json',
+            }
+          : undefined,
+        body: payload ? JSON.stringify(payload) : undefined,
+        signal: controller.signal,
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || `Request failed (${response.status})`);
+      }
+
+      return data;
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        throw new Error('Request timed out. Please retry.');
+      }
+
+      if (error instanceof TypeError) {
+        throw new Error('Network error. Check connection and retry.');
+      }
+
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
     }
-
-    return data;
   };
 
   const loadModels = async () => {

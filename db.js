@@ -6,14 +6,81 @@ import path from 'node:path';
 
 const configuredDbPath = (process.env.DB_PATH || 'chickybites.db').trim();
 const dbPath = configuredDbPath === ':memory:' ? ':memory:' : path.resolve(configuredDbPath);
+const legacyDbPath = path.resolve('chickybites.db');
+
+const databaseRuntimeInfo = {
+  configuredDbPath,
+  resolvedDbPath: dbPath,
+  legacyDbPath,
+  usingMemoryDb: dbPath === ':memory:',
+  targetExistsBeforeOpen: false,
+  targetExistsAfterOpen: false,
+  targetFileSizeBytes: 0,
+  migratedFrom: null,
+  migrationReason: null,
+  migrationError: null,
+  migratedWalFile: false,
+  migratedShmFile: false,
+};
+
+const exists = (filePath) => {
+  try {
+    fs.accessSync(filePath, fs.constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const safeFileSize = (filePath) => {
+  try {
+    return fs.statSync(filePath).size || 0;
+  } catch {
+    return 0;
+  }
+};
 
 if (dbPath !== ':memory:') {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  databaseRuntimeInfo.targetExistsBeforeOpen = exists(dbPath);
+
+  const canMigrateFromLegacy =
+    !databaseRuntimeInfo.targetExistsBeforeOpen && dbPath !== legacyDbPath && exists(legacyDbPath);
+
+  if (canMigrateFromLegacy) {
+    try {
+      fs.copyFileSync(legacyDbPath, dbPath);
+      databaseRuntimeInfo.migratedFrom = legacyDbPath;
+      databaseRuntimeInfo.migrationReason = 'target_missing_legacy_found';
+
+      const legacyWal = `${legacyDbPath}-wal`;
+      const legacyShm = `${legacyDbPath}-shm`;
+      const targetWal = `${dbPath}-wal`;
+      const targetShm = `${dbPath}-shm`;
+
+      if (exists(legacyWal)) {
+        fs.copyFileSync(legacyWal, targetWal);
+        databaseRuntimeInfo.migratedWalFile = true;
+      }
+
+      if (exists(legacyShm)) {
+        fs.copyFileSync(legacyShm, targetShm);
+        databaseRuntimeInfo.migratedShmFile = true;
+      }
+    } catch (error) {
+      databaseRuntimeInfo.migrationError = error.message;
+    }
+  }
 }
 
 const db = new Database(dbPath);
 db.pragma('foreign_keys = ON');
 db.pragma('journal_mode = WAL');
+
+if (dbPath !== ':memory:') {
+  databaseRuntimeInfo.targetExistsAfterOpen = exists(dbPath);
+  databaseRuntimeInfo.targetFileSizeBytes = safeFileSize(dbPath);
+}
 
 const ATTENDANCE_STATUSES = ['present', 'absent', 'leave'];
 const LEAVE_STATUSES = ['pending', 'approved', 'rejected'];
@@ -28,6 +95,10 @@ db.exec(`
     full_name TEXT NOT NULL,
     phone TEXT,
     position TEXT,
+    cnic TEXT,
+    address TEXT,
+    joining_date TEXT,
+    salary_date TEXT,
     role TEXT NOT NULL CHECK(role IN ('manager', 'staff')),
     status TEXT NOT NULL CHECK(status IN ('active', 'inactive')) DEFAULT 'active',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -101,11 +172,40 @@ db.exec(`
   );
 `);
 
-const seedAdmin = () => {
-  const email = process.env.ADMIN_EMAIL || 'admin@chickybites.com';
-  const password = process.env.ADMIN_PASSWORD || 'ChangeMe@123';
+const tableHasColumn = (tableName, columnName) => {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  return columns.some((column) => column.name === columnName);
+};
 
-  const existing = db.prepare('SELECT id FROM users WHERE email = ? LIMIT 1').get(email.toLowerCase());
+const ensureEmployeesSchema = () => {
+  if (!tableHasColumn('employees', 'cnic')) {
+    db.exec('ALTER TABLE employees ADD COLUMN cnic TEXT');
+  }
+
+  if (!tableHasColumn('employees', 'address')) {
+    db.exec('ALTER TABLE employees ADD COLUMN address TEXT');
+  }
+
+  if (!tableHasColumn('employees', 'joining_date')) {
+    db.exec('ALTER TABLE employees ADD COLUMN joining_date TEXT');
+  }
+
+  if (!tableHasColumn('employees', 'salary_date')) {
+    db.exec('ALTER TABLE employees ADD COLUMN salary_date TEXT');
+  }
+};
+
+ensureEmployeesSchema();
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_cnic_unique ON employees(cnic) WHERE cnic IS NOT NULL`);
+
+const seedAdmin = () => {
+  const email = (process.env.ADMIN_EMAIL || 'admin@chickybites.com').trim().toLowerCase();
+  const configuredPassword = process.env.ADMIN_PASSWORD?.trim();
+  const password = configuredPassword || 'ChangeMe@123';
+
+  const existing = db
+    .prepare('SELECT id, password_hash FROM users WHERE email = ? LIMIT 1')
+    .get(email);
 
   if (!existing) {
     const id = randomUUID();
@@ -113,7 +213,15 @@ const seedAdmin = () => {
     db.prepare(
       `INSERT INTO users (id, full_name, email, password_hash, role, active)
        VALUES (?, ?, ?, ?, 'admin', 1)`
-    ).run(id, 'System Admin', email.toLowerCase(), hash);
+    ).run(id, 'System Admin', email, hash);
+  } else {
+    db.prepare("UPDATE users SET role = 'admin', active = 1 WHERE id = ?").run(existing.id);
+
+    // If ADMIN_PASSWORD is explicitly configured, keep the stored admin hash in sync.
+    if (configuredPassword && !bcrypt.compareSync(configuredPassword, existing.password_hash)) {
+      const hash = bcrypt.hashSync(configuredPassword, 12);
+      db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, existing.id);
+    }
   }
 
   // Enforce admin-only sign-in mode.
@@ -162,19 +270,34 @@ export const findUserByEmail = (email) =>
 export const findUserById = (id) =>
   db.prepare('SELECT * FROM users WHERE id = ? AND active = 1 LIMIT 1').get(id);
 
-export const createEmployee = ({ employeeCode, fullName, phone, position, role }) => {
+export const createEmployee = ({
+  employeeCode,
+  fullName,
+  phone,
+  position,
+  cnic,
+  address,
+  joiningDate,
+  salaryDate,
+  role,
+}) => {
   const employeeId = randomUUID();
   const safeRole = cleanEmployeeRole(role);
 
   db.prepare(
-    `INSERT INTO employees (id, employee_code, full_name, phone, position, role, status)
-     VALUES (?, ?, ?, ?, ?, ?, 'active')`
+    `INSERT INTO employees (
+      id, employee_code, full_name, phone, position, cnic, address, joining_date, salary_date, role, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')`
   ).run(
     employeeId,
     employeeCode,
     fullName,
     phone || null,
     position || null,
+    cnic || null,
+    address || null,
+    joiningDate || null,
+    salaryDate || null,
     safeRole
   );
 
@@ -187,6 +310,10 @@ export const updateEmployee = ({
   fullName,
   phone,
   position,
+  cnic,
+  address,
+  joiningDate,
+  salaryDate,
   role,
   status,
 }) => {
@@ -199,6 +326,10 @@ export const updateEmployee = ({
          full_name = ?,
          phone = ?,
          position = ?,
+         cnic = ?,
+         address = ?,
+         joining_date = ?,
+         salary_date = ?,
          role = ?,
          status = ?
      WHERE id = ?`
@@ -207,6 +338,10 @@ export const updateEmployee = ({
     fullName,
     phone || null,
     position || null,
+    cnic || null,
+    address || null,
+    joiningDate || null,
+    salaryDate || null,
     safeRole,
     safeStatus,
     employeeId
@@ -571,5 +706,6 @@ export const getBiometricMetrics = () => {
 };
 
 export const isValidAttendanceStatus = (status) => ATTENDANCE_STATUSES.includes(status);
+export const getDatabaseRuntimeInfo = () => ({ ...databaseRuntimeInfo });
 
 export default db;

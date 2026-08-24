@@ -4,3 +4,31 @@ chickybites.db
 chickybites.db-*
 .DS_Store
 npm-debug.log*
+
+# Generated builds and local Xcode state
+output/
+DerivedData/
+*.xcarchive/
+*.ipa
+*.dSYM/
+**/xcuserdata/
+*.xcuserstate
+
+# InsForge & AI agent skills
+.codex/
+.insforge
+.agent
+.agents
+.augment
+.claude
+.cline
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+.roo
+.trae
+.windsurf
+
+# Local editor settings
+.vscode/

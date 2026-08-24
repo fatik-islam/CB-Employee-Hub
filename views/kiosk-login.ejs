@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kiosk Access | Chicky Bites Attendance</title>
+    <title>Chicky Bites Employee Hub</title>
+    <link rel="icon" type="image/png" href="/assets/logo.png" />
+    <link rel="shortcut icon" type="image/png" href="/assets/logo.png" />
+    <link rel="apple-touch-icon" href="/assets/logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -26,7 +29,12 @@
       </div>
 
       <% if (flash) { %>
-        <div class="alert <%= flash.type %>"><%= flash.message %></div>
+        <div
+          id="flashToastData"
+          hidden
+          data-flash-type="<%= flash.type %>"
+          data-flash-message="<%= flash.message %>"
+        ></div>
       <% } %>
 
       <form action="/kiosk-login" method="post" class="stack-form">
@@ -42,5 +50,6 @@
         <a class="btn neutral" href="/login">Admin Sign In</a>
       </div>
     </main>
+    <script src="/public/js/toast.js"></script>
   </body>
 </html>

@@ -1,7 +1,20 @@
 (() => {
   const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-  const SQL_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2})?)?$/;
+  const SQL_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/;
   const DMY_DATE_RE = /^(\d{2})-{1,2}(\d{2})-{1,2}(\d{4})$/;
+  const PK_TIME_ZONE = 'Asia/Karachi';
+  const REQUEST_TIMEOUT_MS = 15000;
+  const PK_DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
+    timeZone: PK_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  const getDatePart = (parts, type) => parts.find((item) => item.type === type)?.value || '';
 
   const faceVideo = document.getElementById('faceVideo');
   const faceCanvas = document.getElementById('faceCanvas');
@@ -21,6 +34,11 @@
   }
 
   const summaries = window.__employeeSummaries || {};
+  const toastState = {
+    message: '',
+    tone: '',
+    time: 0,
+  };
 
   const formatDate = (value) => {
     const text = String(value || '').trim();
@@ -39,8 +57,18 @@
     const text = String(value || '').trim();
     const stamp = text.match(SQL_DATETIME_RE);
     if (stamp) {
-      const [, year, month, day, hour = '00', minute = '00'] = stamp;
-      return `${day}-${month}-${year} ${hour}:${minute}`;
+      const [, year, month, day, hour = '00', minute = '00', second = '00'] = stamp;
+      const utcDate = new Date(
+        Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second))
+      );
+      const pkParts = PK_DATE_TIME_FORMATTER.formatToParts(utcDate);
+      const pkDay = getDatePart(pkParts, 'day');
+      const pkMonth = getDatePart(pkParts, 'month');
+      const pkYear = getDatePart(pkParts, 'year');
+      const pkHour = getDatePart(pkParts, 'hour');
+      const pkMinute = getDatePart(pkParts, 'minute');
+      const pkPeriod = getDatePart(pkParts, 'dayPeriod').toLowerCase();
+      return `${pkDay}-${pkMonth}-${pkYear} ${pkHour}:${pkMinute} ${pkPeriod}`;
     }
     return formatDate(text);
   };
@@ -54,11 +82,31 @@
 
     if (tone === 'error') {
       el.style.color = '#9d1717';
+      const now = Date.now();
+      if (
+        window.AppUI?.notify &&
+        (toastState.message !== message || toastState.tone !== tone || now - toastState.time > 1800)
+      ) {
+        window.AppUI.notify({ type: 'error', message });
+        toastState.message = message;
+        toastState.tone = tone;
+        toastState.time = now;
+      }
       return;
     }
 
     if (tone === 'success') {
       el.style.color = '#0b7742';
+      const now = Date.now();
+      if (
+        window.AppUI?.notify &&
+        (toastState.message !== message || toastState.tone !== tone || now - toastState.time > 1800)
+      ) {
+        window.AppUI.notify({ type: 'success', message });
+        toastState.message = message;
+        toastState.tone = tone;
+        toastState.time = now;
+      }
       return;
     }
 
@@ -66,23 +114,41 @@
   };
 
   const fetchJson = async (url, payload) => {
-    const response = await fetch(url, {
-      method: payload ? 'POST' : 'GET',
-      headers: payload
-        ? {
-            'Content-Type': 'application/json',
-          }
-        : undefined,
-      body: payload ? JSON.stringify(payload) : undefined,
-    });
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-    const data = await response.json().catch(() => ({}));
+    try {
+      const response = await fetch(url, {
+        method: payload ? 'POST' : 'GET',
+        headers: payload
+          ? {
+              'Content-Type': 'application/json',
+            }
+          : undefined,
+        body: payload ? JSON.stringify(payload) : undefined,
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      throw new Error(data.error || 'Request failed');
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || `Request failed (${response.status})`);
+      }
+
+      return data;
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        throw new Error('Request timed out. Please retry.');
+      }
+
+      if (error instanceof TypeError) {
+        throw new Error('Network error. Check connection and retry.');
+      }
+
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
     }
-
-    return data;
   };
 
   const requireEmployeeSelection = () => {
@@ -139,6 +205,9 @@
   }
 
   dateInput?.addEventListener('blur', () => {
+    if (dateInput.type === 'date') {
+      return;
+    }
     const normalized = formatDate(dateInput.value);
     if (DMY_DATE_RE.test(normalized)) {
       dateInput.value = normalized;
@@ -217,10 +286,8 @@
       const employeeId = requireEmployeeSelection();
       setStatus(faceStatus, 'Processing face scan...');
       const descriptor = await captureDescriptor();
-      const enteredDate = formatDate(dateInput?.value || '');
-      const date = DMY_DATE_RE.test(enteredDate)
-        ? enteredDate
-        : formatDate(new Date().toISOString().slice(0, 10));
+      const enteredDate = String(dateInput?.value || '').trim();
+      const date = enteredDate || new Date().toISOString().slice(0, 10);
 
       const endpoint = mode === 'enroll' ? '/api/biometric/face/enroll' : '/api/biometric/face/verify';
       const payload = { employeeId, descriptor, date };

@@ -29,16 +29,27 @@
 
       <label>
         Attendance Date
-        <input
-          id="biometricDate"
-          class="date-input"
-          type="text"
-          value="<%= today %>"
-          placeholder="dd-mm-yyyy"
-          inputmode="numeric"
-          pattern="\\d{2}-{1,2}\\d{2}-{1,2}\\d{4}"
-          required
-        />
+        <div class="date-field" data-date-field>
+          <input
+            id="biometricDate"
+            class="date-input date-display-input"
+            type="text"
+            value="<%= today %>"
+            placeholder="dd-mm-yyyy"
+            inputmode="numeric"
+            pattern="\d{2}-{1,2}\d{2}-{1,2}\d{4}"
+            data-date-display
+            required
+          />
+          <input class="date-native-input" type="date" tabindex="-1" aria-hidden="true" data-date-native />
+          <button class="btn ghost date-open-btn" type="button" data-date-open aria-label="Open calendar" title="Open calendar">
+            <svg class="date-open-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M7 2.75a.75.75 0 0 1 .75.75V5h8.5V3.5a.75.75 0 0 1 1.5 0V5h1.5A2.75 2.75 0 0 1 22 7.75v11.5A2.75 2.75 0 0 1 19.25 22H4.75A2.75 2.75 0 0 1 2 19.25V7.75A2.75 2.75 0 0 1 4.75 5h1.5V3.5A.75.75 0 0 1 7 2.75ZM3.5 10v9.25c0 .69.56 1.25 1.25 1.25h14.5c.69 0 1.25-.56 1.25-1.25V10h-17Zm1.25-3.5c-.69 0-1.25.56-1.25 1.25V8.5h17v-.75c0-.69-.56-1.25-1.25-1.25H4.75Z"
+              />
+            </svg>
+          </button>
+        </div>
       </label>
 
       <div class="split-actions">

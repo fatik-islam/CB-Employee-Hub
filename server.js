@@ -3,15 +3,17 @@ import express from 'express';
 import session from 'express-session';
 import helmet from 'helmet';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import {
+import db, {
   addBiometricLog,
   createEmployee,
   createLeaveRequest,
   deleteEmployee,
   deleteFaceProfile,
   findUserByEmail,
+  getDatabaseRuntimeInfo,
   getBiometricMetrics,
   getDashboardStats,
   getEmployeeBiometricSummary,
@@ -34,17 +36,46 @@ import { isFaceMatch, normalizeDescriptor } from './services/biometric.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const require = createRequire(import.meta.url);
+const SQLiteStore = require('better-sqlite3-session-store')(session);
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const ORIGIN = process.env.RP_ORIGIN || `http://localhost:${PORT}`;
 const KIOSK_PIN = process.env.KIOSK_PIN || '2468';
+const IS_PROD = process.env.NODE_ENV === 'production';
+const PK_TIME_ZONE = 'Asia/Karachi';
+const CNIC_RE = /^\d{5}-\d{7}-\d$/;
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DMY_DATE_RE = /^(\d{2})-{1,2}(\d{2})-{1,2}(\d{4})$/;
 const SQL_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/;
 
 const pad2 = (value) => String(value).padStart(2, '0');
-const isoToday = () => new Date().toISOString().slice(0, 10);
+const PK_DATE_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  timeZone: PK_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+const PK_DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: PK_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+});
+
+const getDatePart = (parts, type) => parts.find((entry) => entry.type === type)?.value || '';
+
+const isoToday = () => {
+  const parts = PK_DATE_FORMATTER.formatToParts(new Date());
+  const year = getDatePart(parts, 'year');
+  const month = getDatePart(parts, 'month');
+  const day = getDatePart(parts, 'day');
+  return `${year}-${month}-${day}`;
+};
 
 const isValidDateParts = (year, month, day) => {
   const candidate = new Date(Date.UTC(year, month - 1, day));
@@ -109,8 +140,23 @@ const formatDateTime = (value) => {
   const raw = String(value).trim();
   const parts = raw.match(SQL_DATETIME_RE);
   if (parts) {
-    const [, year, month, day, hour = '00', minute = '00'] = parts;
-    return `${day}-${month}-${year} ${hour}:${minute}`;
+    const [, year, month, day, hour = '00', minute = '00', second = '00'] = parts;
+    const timestamp = Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second)
+    );
+    const pkParts = PK_DATE_TIME_FORMATTER.formatToParts(new Date(timestamp));
+    const pkDay = getDatePart(pkParts, 'day');
+    const pkMonth = getDatePart(pkParts, 'month');
+    const pkYear = getDatePart(pkParts, 'year');
+    const pkHour = getDatePart(pkParts, 'hour');
+    const pkMinute = getDatePart(pkParts, 'minute');
+    const pkPeriod = getDatePart(pkParts, 'dayPeriod').toLowerCase();
+    return `${pkDay}-${pkMonth}-${pkYear} ${pkHour}:${pkMinute} ${pkPeriod}`;
   }
 
   return formatDate(raw);
@@ -137,16 +183,42 @@ app.use(
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: '3mb' }));
+
+// Handle malformed JSON payloads early with a clear response.
+app.use((error, _req, res, next) => {
+  if (!(error instanceof SyntaxError) || !('body' in error)) {
+    next(error);
+    return;
+  }
+
+  res.status(400).json({ ok: false, error: 'Invalid JSON payload.' });
+});
+
+if (IS_PROD) {
+  // Render terminates TLS at the proxy, so trust X-Forwarded-* for secure cookies.
+  app.set('trust proxy', 1);
+}
+
+const sessionStore = new SQLiteStore({
+  client: db,
+  expired: {
+    clear: true,
+    intervalMs: 15 * 60 * 1000,
+  },
+});
+
 app.use(
   session({
     name: 'cb_attendance_sid',
     secret: process.env.SESSION_SECRET || 'cb_attendance_please_change_me',
     resave: false,
     saveUninitialized: false,
+    proxy: IS_PROD,
+    store: sessionStore,
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
-      secure: false,
+      secure: IS_PROD,
       maxAge: 1000 * 60 * 60 * 10,
     },
   })
@@ -174,6 +246,23 @@ app.use((req, res, next) => {
 
 const setFlash = (req, message, type = 'info') => {
   req.session.flash = { type, message };
+};
+
+const formatUnexpectedError = (error) => {
+  if (!IS_PROD && error?.message) {
+    return error.message;
+  }
+
+  return 'Unexpected server error. Please retry.';
+};
+
+const sendApiError = (res, error, status = 500) => {
+  // eslint-disable-next-line no-console
+  console.error('[API_ERROR]', error);
+  return res.status(status).json({
+    ok: false,
+    error: formatUnexpectedError(error),
+  });
 };
 
 const parseDateIn = (value, fallback) => {
@@ -281,6 +370,262 @@ app.post('/kiosk-logout', (req, res) => {
   return res.redirect('/kiosk-login');
 });
 
+// Native iOS companion API. These routes intentionally reuse the same
+// session, validation, and database functions as the web application so both
+// clients stay consistent.
+app.post('/api/mobile/login', (req, res) => {
+  const schema = z.object({
+    email: z.string().trim().email(),
+    password: z.string().min(1),
+  });
+  const parsed = schema.safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid email or password format.' });
+  }
+
+  const user = findUserByEmail(parsed.data.email);
+  if (!user || user.role !== 'admin' || !bcrypt.compareSync(parsed.data.password, user.password_hash)) {
+    return res.status(401).json({ ok: false, error: 'Invalid admin credentials.' });
+  }
+
+  req.session.userId = user.id;
+  req.session.isKiosk = false;
+
+  return res.json({
+    ok: true,
+    user: {
+      id: user.id,
+      full_name: user.full_name,
+      email: user.email,
+      role: user.role,
+    },
+  });
+});
+
+app.post('/api/mobile/kiosk-login', (req, res) => {
+  const schema = z.object({ pin: z.string().trim().min(1) });
+  const parsed = schema.safeParse(req.body);
+
+  if (!parsed.success || parsed.data.pin !== KIOSK_PIN) {
+    return res.status(401).json({ ok: false, error: 'Invalid kiosk PIN.' });
+  }
+
+  req.session.userId = null;
+  req.session.isKiosk = true;
+  return res.json({ ok: true, message: 'Kiosk mode activated.' });
+});
+
+app.post('/api/mobile/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.json({ ok: true, message: 'Signed out.' });
+  });
+});
+
+app.get('/api/mobile/bootstrap', requireRoles('admin'), (req, res) => {
+  const date = parseDateIn(req.query.date, isoToday());
+  const employees = listEmployees();
+  const activeEmployees = employees.filter((employee) => employee.status === 'active');
+  const biometricSummaries = {};
+
+  for (const employee of activeEmployees) {
+    biometricSummaries[employee.id] = getEmployeeBiometricSummary(employee.id);
+  }
+
+  return res.json({
+    ok: true,
+    payload: {
+      stats: getDashboardStats(),
+      metrics: getBiometricMetrics(),
+      employees,
+      attendance: listAttendanceForDate(date),
+      leaves: listLeaveRecords(),
+      biometric_logs: listBiometricLogs(120),
+      biometric_summaries: biometricSummaries,
+      today: date,
+    },
+  });
+});
+
+const mobileEmployeeSchema = z.object({
+  employeeCode: z.string().trim().min(2).max(32),
+  fullName: z.string().trim().min(2).max(120),
+  phone: z.string().trim().max(30).optional().or(z.literal('')),
+  position: z.string().trim().max(80).optional().or(z.literal('')),
+  cnic: z.string().trim().regex(CNIC_RE, 'CNIC format must be like 45102-8391742-7.'),
+  address: z.string().trim().min(5).max(300),
+  joiningDate: z.string().trim().min(1),
+  salaryDate: z.string().trim().min(1),
+  role: z.enum(['manager', 'staff']),
+  status: z.enum(['active', 'inactive']).optional(),
+});
+
+const mobileEmployeePayload = (payload) => {
+  const joiningDate = parseDateIn(payload.joiningDate, null);
+  const salaryDate = parseDateIn(payload.salaryDate, null);
+
+  if (!joiningDate || !salaryDate) {
+    throw new Error('Invalid joining or salary date.');
+  }
+
+  return {
+    employeeCode: payload.employeeCode,
+    fullName: payload.fullName,
+    phone: payload.phone,
+    position: payload.position,
+    cnic: payload.cnic,
+    address: payload.address,
+    joiningDate,
+    salaryDate,
+    role: payload.role,
+  };
+};
+
+app.post('/api/mobile/employees', requireRoles('admin'), (req, res) => {
+  try {
+    const parsed = mobileEmployeeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, error: 'Please check the employee fields.' });
+    }
+
+    const employee = createEmployee(mobileEmployeePayload(parsed.data));
+    return res.status(201).json({ ok: true, message: 'Employee added.', employee });
+  } catch (error) {
+    const isUnique = error.message.includes('UNIQUE');
+    const message = isUnique ? 'Employee code or CNIC already exists.' : error.message;
+    return res.status(isUnique ? 409 : 400).json({ ok: false, error: message });
+  }
+});
+
+app.patch('/api/mobile/employees/:id', requireRoles('admin'), (req, res) => {
+  try {
+    const employee = getEmployeeById(req.params.id);
+    if (!employee) {
+      return res.status(404).json({ ok: false, error: 'Employee not found.' });
+    }
+
+    const parsed = mobileEmployeeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, error: 'Please check the employee fields.' });
+    }
+
+    const updated = updateEmployee({
+      employeeId: employee.id,
+      ...mobileEmployeePayload(parsed.data),
+      status: parsed.data.status || employee.status,
+    });
+    return res.json({ ok: true, message: 'Employee updated.', employee: updated });
+  } catch (error) {
+    const isUnique = error.message.includes('UNIQUE');
+    const message = isUnique ? 'Employee code or CNIC already exists.' : error.message;
+    return res.status(isUnique ? 409 : 400).json({ ok: false, error: message });
+  }
+});
+
+app.delete('/api/mobile/employees/:id', requireRoles('admin'), (req, res) => {
+  const employee = getEmployeeById(req.params.id);
+  if (!employee) {
+    return res.status(404).json({ ok: false, error: 'Employee not found.' });
+  }
+
+  deleteEmployee(employee.id);
+  return res.json({ ok: true, message: `${employee.full_name} was deleted.` });
+});
+
+app.post('/api/mobile/attendance', requireRoles('admin'), (req, res) => {
+  const schema = z.object({
+    employeeId: z.string().uuid(),
+    date: z.string().trim().min(1),
+    status: z.enum(['present', 'absent', 'leave']),
+    notes: z.string().trim().max(250).optional().or(z.literal('')),
+  });
+  const parsed = schema.safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid attendance details.' });
+  }
+
+  const date = parseDateIn(parsed.data.date, null);
+  const employee = getEmployeeById(parsed.data.employeeId);
+  if (!date || !employee) {
+    return res.status(404).json({ ok: false, error: 'Employee or attendance date is invalid.' });
+  }
+
+  const record = upsertAttendance({
+    employeeId: employee.id,
+    date,
+    status: parsed.data.status,
+    markSource: 'manual',
+    notes: parsed.data.notes,
+    recordedByUserId: actorUserId(req),
+  });
+
+  return res.json({ ok: true, message: 'Attendance updated.', record });
+});
+
+app.post('/api/mobile/leaves', requireRoles('admin'), (req, res) => {
+  const schema = z.object({
+    employeeId: z.string().uuid(),
+    startDate: z.string().trim().min(1),
+    endDate: z.string().trim().min(1),
+    reason: z.string().trim().max(350).optional().or(z.literal('')),
+  });
+  const parsed = schema.safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid leave request.' });
+  }
+
+  const startDate = parseDateIn(parsed.data.startDate, null);
+  const endDate = parseDateIn(parsed.data.endDate, null);
+  const employee = getEmployeeById(parsed.data.employeeId);
+
+  if (!employee || !startDate || !endDate || startDate > endDate) {
+    return res.status(400).json({ ok: false, error: 'Employee or leave dates are invalid.' });
+  }
+
+  const leave = createLeaveRequest({
+    employeeId: employee.id,
+    requestedByUserId: actorUserId(req),
+    startDate,
+    endDate,
+    reason: parsed.data.reason,
+  });
+  return res.status(201).json({ ok: true, message: 'Leave request created.', leave });
+});
+
+app.patch('/api/mobile/leaves/:id/status', requireRoles('admin'), (req, res) => {
+  const schema = z.object({ status: z.enum(['approved', 'rejected']) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid leave review status.' });
+  }
+
+  const updated = updateLeaveStatus({
+    leaveId: req.params.id,
+    status: parsed.data.status,
+    reviewedByUserId: actorUserId(req),
+  });
+  if (!updated) {
+    return res.status(404).json({ ok: false, error: 'Leave request not found.' });
+  }
+
+  if (parsed.data.status === 'approved') {
+    for (const date of dateRange(updated.start_date, updated.end_date)) {
+      upsertAttendance({
+        employeeId: updated.employee_id,
+        date,
+        status: 'leave',
+        markSource: 'manual',
+        notes: 'Auto-marked from approved leave.',
+        recordedByUserId: actorUserId(req),
+      });
+    }
+  }
+
+  return res.json({ ok: true, message: `Leave request ${parsed.data.status}.`, leave: updated });
+});
+
 app.get('/dashboard', requireRoles('admin'), (req, res) => {
   const stats = getDashboardStats();
   const employees = listEmployees().slice(0, 8);
@@ -327,6 +672,10 @@ app.post('/employees', requireRoles('admin'), (req, res) => {
     fullName: z.string().trim().min(2).max(120),
     phone: z.string().trim().max(30).optional().or(z.literal('')),
     position: z.string().trim().max(80).optional().or(z.literal('')),
+    cnic: z.string().trim().regex(CNIC_RE, 'CNIC format must be like 45102-8391742-7.'),
+    address: z.string().trim().min(5).max(300),
+    joiningDate: z.string().trim().min(1),
+    salaryDate: z.string().trim().min(1),
     role: z.enum(['manager', 'staff']),
   });
 
@@ -338,18 +687,41 @@ app.post('/employees', requireRoles('admin'), (req, res) => {
 
   try {
     const payload = parsed.data;
+    const joiningDateIso = parseDateIn(payload.joiningDate, null);
+    const salaryDateIso = parseDateIn(payload.salaryDate, null);
+
+    if (!joiningDateIso || !salaryDateIso) {
+      setFlash(req, 'Invalid joining/salary date. Use dd-mm-yyyy.', 'error');
+      return res.redirect('/employees');
+    }
+
     createEmployee({
       employeeCode: payload.employeeCode,
       fullName: payload.fullName,
       phone: payload.phone,
       position: payload.position,
+      cnic: payload.cnic,
+      address: payload.address,
+      joiningDate: joiningDateIso,
+      salaryDate: salaryDateIso,
       role: payload.role,
     });
 
     setFlash(req, `Employee ${payload.fullName} was added.`, 'success');
     return res.redirect('/employees');
   } catch (error) {
-    setFlash(req, error.message.includes('UNIQUE') ? 'Employee code already exists.' : error.message, 'error');
+    const isUnique = error.message.includes('UNIQUE');
+    const isCodeUnique = error.message.includes('employee_code');
+    const isCnicUnique =
+      error.message.includes('employees.cnic') || error.message.includes('idx_employees_cnic_unique');
+    const message = isUnique
+      ? isCnicUnique
+        ? 'CNIC already exists.'
+        : isCodeUnique
+          ? 'Employee code already exists.'
+          : 'Employee code/CNIC must be unique.'
+      : error.message;
+    setFlash(req, message, 'error');
     return res.redirect('/employees');
   }
 });
@@ -368,6 +740,10 @@ app.post('/employees/:id/update', requireRoles('admin'), (req, res) => {
     fullName: z.string().trim().min(2).max(120),
     phone: z.string().trim().max(30).optional().or(z.literal('')),
     position: z.string().trim().max(80).optional().or(z.literal('')),
+    cnic: z.string().trim().regex(CNIC_RE, 'CNIC format must be like 45102-8391742-7.'),
+    address: z.string().trim().min(5).max(300),
+    joiningDate: z.string().trim().min(1),
+    salaryDate: z.string().trim().min(1),
     role: z.enum(['manager', 'staff']),
     status: z.enum(['active', 'inactive']),
   });
@@ -380,12 +756,24 @@ app.post('/employees/:id/update', requireRoles('admin'), (req, res) => {
 
   try {
     const payload = parsed.data;
+    const joiningDateIso = parseDateIn(payload.joiningDate, null);
+    const salaryDateIso = parseDateIn(payload.salaryDate, null);
+
+    if (!joiningDateIso || !salaryDateIso) {
+      setFlash(req, 'Invalid joining/salary date. Use dd-mm-yyyy.', 'error');
+      return res.redirect(`/employees?edit=${encodeURIComponent(employeeId)}`);
+    }
+
     updateEmployee({
       employeeId,
       employeeCode: payload.employeeCode,
       fullName: payload.fullName,
       phone: payload.phone,
       position: payload.position,
+      cnic: payload.cnic,
+      address: payload.address,
+      joiningDate: joiningDateIso,
+      salaryDate: salaryDateIso,
       role: payload.role,
       status: payload.status,
     });
@@ -393,7 +781,18 @@ app.post('/employees/:id/update', requireRoles('admin'), (req, res) => {
     setFlash(req, `${payload.fullName} updated successfully.`, 'success');
     return res.redirect('/employees');
   } catch (error) {
-    setFlash(req, error.message.includes('UNIQUE') ? 'Employee code already exists.' : error.message, 'error');
+    const isUnique = error.message.includes('UNIQUE');
+    const isCodeUnique = error.message.includes('employee_code');
+    const isCnicUnique =
+      error.message.includes('employees.cnic') || error.message.includes('idx_employees_cnic_unique');
+    const message = isUnique
+      ? isCnicUnique
+        ? 'CNIC already exists.'
+        : isCodeUnique
+          ? 'Employee code already exists.'
+          : 'Employee code/CNIC must be unique.'
+      : error.message;
+    setFlash(req, message, 'error');
     return res.redirect(`/employees?edit=${encodeURIComponent(employeeId)}`);
   }
 });
@@ -629,7 +1028,7 @@ app.post('/api/biometric/face/enroll', requireRoles('admin'), (req, res) => {
 
     return res.json({ ok: true, message: 'Face profile enrolled successfully.' });
   } catch (error) {
-    return res.status(500).json({ ok: false, error: error.message });
+    return sendApiError(res, error);
   }
 });
 
@@ -659,7 +1058,7 @@ app.post('/api/biometric/face/delete', requireRoles('admin'), (req, res) => {
 
     return res.json({ ok: true, message: removed ? 'Face profile removed.' : 'No face profile existed.' });
   } catch (error) {
-    return res.status(500).json({ ok: false, error: error.message });
+    return sendApiError(res, error);
   }
 });
 
@@ -740,7 +1139,7 @@ app.post('/api/biometric/face/verify', requireRoles('admin'), (req, res) => {
       message: 'Face verified and attendance marked present.',
     });
   } catch (error) {
-    return res.status(500).json({ ok: false, error: error.message });
+    return sendApiError(res, error);
   }
 });
 
@@ -836,7 +1235,7 @@ app.post('/api/attendance/face/identify', requireKioskOrAdmin, (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ ok: false, error: error.message });
+    return sendApiError(res, error);
   }
 });
 
@@ -876,7 +1275,7 @@ app.post('/api/attendance/confirm', requireKioskOrAdmin, (req, res) => {
       record,
     });
   } catch (error) {
-    return res.status(500).json({ ok: false, error: error.message });
+    return sendApiError(res, error);
   }
 });
 
@@ -902,14 +1301,79 @@ app.use((_req, res) => {
   });
 });
 
-app.use((error, _req, res, _next) => {
-  res.status(500).render('error', {
+app.use((error, req, res, _next) => {
+  // eslint-disable-next-line no-console
+  console.error('[UNHANDLED_REQUEST_ERROR]', error);
+
+  if (req.path.startsWith('/api/')) {
+    return sendApiError(res, error);
+  }
+
+  return res.status(500).render('error', {
     pageTitle: 'Server Error',
-    message: error.message || 'Unexpected error occurred.',
+    message: formatUnexpectedError(error),
   });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
+  const dbInfo = getDatabaseRuntimeInfo();
+
+  // eslint-disable-next-line no-console
+  console.log(`[DB] DB_PATH="${dbInfo.configuredDbPath}" resolved="${dbInfo.resolvedDbPath}"`);
+  // eslint-disable-next-line no-console
+  console.log(
+    `[DB] exists_before_open=${dbInfo.targetExistsBeforeOpen} exists_after_open=${dbInfo.targetExistsAfterOpen} size_bytes=${dbInfo.targetFileSizeBytes}`
+  );
+
+  if (dbInfo.migratedFrom) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[DB] migrated_from="${dbInfo.migratedFrom}" wal_copied=${dbInfo.migratedWalFile} shm_copied=${dbInfo.migratedShmFile}`
+    );
+  }
+
+  if (dbInfo.migrationError) {
+    // eslint-disable-next-line no-console
+    console.warn(`[DB] migration_error="${dbInfo.migrationError}"`);
+  }
+
+  if (
+    process.env.NODE_ENV === 'production' &&
+    dbInfo.resolvedDbPath !== ':memory:' &&
+    !dbInfo.resolvedDbPath.startsWith('/var/data/')
+  ) {
+    // eslint-disable-next-line no-console
+    console.warn('[DB] DB_PATH is not under /var/data. Data can reset on Render restarts.');
+  }
+
   // eslint-disable-next-line no-console
   console.log(`Chicky Bites Attendance running at ${ORIGIN}`);
+});
+
+let shuttingDown = false;
+const gracefulShutdown = (signal) => {
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
+  // eslint-disable-next-line no-console
+  console.error(`[FATAL] ${signal}. Closing server...`);
+  server.close(() => {
+    process.exit(1);
+  });
+
+  setTimeout(() => {
+    process.exit(1);
+  }, 5000).unref();
+};
+
+process.on('unhandledRejection', (reason) => {
+  // eslint-disable-next-line no-console
+  console.error('[UNHANDLED_REJECTION]', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  // eslint-disable-next-line no-console
+  console.error('[UNCAUGHT_EXCEPTION]', error);
+  gracefulShutdown('uncaughtException');
 });

@@ -1,0 +1,114 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "CFBundleDisplayName": {
+      "comment": "Bundle display name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "CB Employee Hub"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CB ایمپلائی ہب"
+          }
+        }
+      }
+    },
+    "CFBundleName": {
+      "comment": "Bundle name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "ChickyBitesAttendance"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ChickyBitesAttendance"
+          }
+        }
+      }
+    },
+    "NSCameraUsageDescription": {
+      "comment": "Privacy - Camera Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "CB Employee Hub uses the front camera to enroll an employee face and perform a live face match before attendance."
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CB ایمپلائی ہب ملازم کے چہرے کا اندراج کرنے اور حاضری سے پہلے لائیو فیس میچ کرنے کے لیے فرنٹ کیمرہ استعمال کرتا ہے۔"
+          }
+        }
+      }
+    },
+    "NSFaceIDUsageDescription": {
+      "comment": "Privacy - Face ID Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Use Face ID to sign in securely without typing your password each time."
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ہر بار اپنا پاس ورڈ ٹائپ کیے بغیر محفوظ طریقے سے سائن ان کرنے کے لیے Face ID استعمال کریں۔"
+          }
+        }
+      }
+    },
+    "NSLocalNetworkUsageDescription": {
+      "comment": "Privacy - Local Network Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Local network access helps verify attendance against the restaurant Wi-Fi."
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مقامی نیٹ ورک تک رسائی ریستوران Wi-Fi کے خلاف حاضری کی تصدیق میں مدد کرتی ہے۔"
+          }
+        }
+      }
+    },
+    "NSLocationWhenInUseUsageDescription": {
+      "comment": "Privacy - Location When In Use Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Your location verifies that attendance is being marked within 50 metres of your assigned branch."
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "آپ کا مقام اس بات کی تصدیق کرتا ہے کہ آپ کی تفویض کردہ برانچ کے 50 میٹر کے اندر حاضری کو نشان زد کیا جا رہا ہے۔"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.2"
+}

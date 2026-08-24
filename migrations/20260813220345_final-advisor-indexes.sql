@@ -1,0 +1,14 @@
+create index if not exists salary_disputes_reviewed_by_idx on public.salary_transaction_disputes(reviewed_by);
+create index if not exists salary_disputes_employee_idx on public.salary_transaction_disputes(employee_id);
+create index if not exists salary_disputes_created_by_idx on public.salary_transaction_disputes(created_by_user_id);
+create index if not exists salary_events_organization_idx on public.salary_transaction_events(organization_id);
+create index if not exists salary_events_actor_idx on public.salary_transaction_events(actor_user_id);
+create index if not exists salary_rules_branch_idx on public.salary_transaction_rules(branch_id);
+create index if not exists salary_rules_created_by_idx on public.salary_transaction_rules(created_by);
+create index if not exists salary_ledger_branch_idx on public.salary_ledger_transactions(branch_id);
+create index if not exists salary_ledger_approved_by_idx on public.salary_ledger_transactions(approved_by);
+create index if not exists salary_ledger_created_by_idx on public.salary_ledger_transactions(created_by);
+create index if not exists deletion_requests_organization_idx on public.account_deletion_requests(organization_id);
+create index if not exists statutory_rules_created_by_idx on public.payroll_statutory_rules(created_by);
+create index if not exists salary_food_branch_idx on public.salary_food_items(branch_id);
+create index if not exists payslip_access_organization_idx on public.payslip_access_events(organization_id);
